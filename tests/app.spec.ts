@@ -28,8 +28,8 @@ test('dragging across lines paints in the selected mode', async ({ page }) => {
   await fresh(page)
   await page.getByRole('button', { name: '粗记号笔', exact: true }).click()
   const points = await body(page).evaluate(el => {
-    const first = el.querySelector('p')!.firstChild!
-    const last = el.querySelector('p:last-child')!.firstChild!
+    const first = document.createTreeWalker(el.querySelector('p')!, NodeFilter.SHOW_TEXT).nextNode()!
+    const last = document.createTreeWalker(el.querySelector('p:last-child')!, NodeFilter.SHOW_TEXT).nextNode()!
     const start = document.createRange(); start.setStart(first, 0); start.setEnd(first, 1)
     const end = document.createRange(); end.setStart(last, 6); end.setEnd(last, 7)
     const a = start.getBoundingClientRect(), b = end.getBoundingClientRect()

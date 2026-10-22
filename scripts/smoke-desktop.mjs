@@ -25,12 +25,27 @@ async function launch() {
 try {
   let page = await launch()
   expect(await page.evaluate(() => typeof window.desktop?.save)).toBe('function')
+  expect(await page.evaluate(() => typeof window.desktop?.speak)).toBe('function')
+  if (process.platform === 'win32') {
+    const audio = await app.evaluate(async ({ app }) => {
+      const { pathToFileURL } = await import('node:url')
+      const { join } = await import('node:path')
+      const { speakWord } = await import(pathToFileURL(join(app.getAppPath(), 'electron', 'speech.js')).href)
+      return await speakWord({ word: 'cat', phonetic: 'kæt' }, { probe: true })
+    })
+    expect(audio.ok, JSON.stringify(audio)).toBe(true)
+    expect(audio.mode).toBe('ipa')
+    expect(audio.waveHeader).toBe('RIFF')
+    expect(audio.audioBytes).toBeGreaterThan(1000)
+    console.log(`PASS: packaged offline Windows IPA synthesis, ${audio.audioBytes} audio bytes`)
+  }
   await page.getByRole('textbox', { name: '笔记标题' }).fill('桌面保存测试')
   await page.getByRole('textbox', { name: '笔记正文' }).fill('The hunt for the puma. 你好，拾光。')
   await page.getByRole('textbox', { name: '笔记正文' }).press('Control+a')
   await expect(page.locator('.tool-hint')).toContainText('选择一支记号笔')
   await page.getByRole('button', { name: '粗记号笔', exact: true }).click()
-  await expect(page.locator('.ink')).toHaveAttribute('data-layer-count', '1')
+  await expect(page.locator('.ink')).toHaveCount(2)
+  expect(await page.locator('.ink').evaluateAll(elements => elements.every(element => element.getAttribute('data-layer-count') === '1'))).toBe(true)
   await page.getByRole('button', { name: '切换到夜间模式' }).click()
   await openAnalysis(page)
   await expect(panel(page).locator('[data-detail-ink]')).toHaveCount(0)

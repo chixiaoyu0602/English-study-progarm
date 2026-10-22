@@ -112,6 +112,25 @@ input[type="color"] { width: 42px; height: 37px; background: transparent; paddin
 .ink-surface { padding: .08em 0; background-image: var(--ink-light); -webkit-box-decoration-break: slice; box-decoration-break: slice; }
 :root[data-theme="dark"] .ink-surface { background-image: var(--ink-dark); }
 .tool-text .ink-surface[data-analysis-id] { cursor: pointer; }
+.reading-mode { display: flex; gap: 2px; background: var(--hover); padding: 3px; border: 1px solid var(--border); border-radius: 7px; }
+.reading-mode button { padding: 6px 10px; border-radius: 4px; font-size: 14px; color: var(--secondary); white-space: nowrap; }
+.reading-mode button[aria-pressed="true"] { background: var(--paper); color: var(--accent); box-shadow: 0 1px 3px #0000000a; }
+.sentence-view .tiptap { padding-left: 39px; }
+.sentence-view .tiptap p { margin-bottom: 1.8em; }
+.sentence-start { display: block; position: relative; height: 0; margin-top: 1em; padding-top: .8em; border-top: 1px solid var(--border); user-select: none; }
+.sentence-start.paragraph-start { border-top: 0; margin-top: 0; padding-top: 0; }
+.editor-body .sentence-number { position: absolute; top: .85em; left: -45px; width: 34px; height: 30px; display: grid; place-items: center; color: var(--secondary); background: var(--surface); border: 1px solid var(--border); border-radius: 5px; cursor: pointer; font: 14px/1 "Segoe UI", sans-serif; letter-spacing: 0; }
+.sentence-number::before { content: attr(data-number); }
+.paragraph-start .sentence-number { top: .2em; }
+.sentence-number:hover { color: var(--accent); border-color: var(--selected-border); }
+.sentence-menu { position: fixed; z-index: 30; width: 232px; padding: 10px; background: var(--paper); border: 1px solid var(--selected-border); box-shadow: 0 8px 30px #00000020; border-radius: 10px; }
+.sentence-menu > span { display: block; padding: 5px 8px 9px; font-size: 13px; color: var(--muted); }
+.sentence-menu button { display: block; width: 100%; padding: 9px 8px; text-align: left; font-size: 14px; border-radius: 5px; }
+.sentence-menu button:hover:not(:disabled) { background: var(--accent-soft); color: var(--accent); }
+.pronounce-word { color: var(--accent); align-self: center; }
+.pronounce-word.speaking { background: var(--accent-soft); }
+.speech-status { color: var(--secondary); font-size: 14px; line-height: 1.8; margin: -10px 0 20px; }
+.speech-error { color: #b65c50; }
 .ink-surface[role="button"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
 .tool-wide ::selection, .tool-fine ::selection { background: color-mix(in srgb, var(--active-ink) 50%, transparent); }
 .paper-end { display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--muted); opacity: .5; margin: 36px auto 0; }

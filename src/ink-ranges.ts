@@ -1,10 +1,15 @@
 import type { Node as ProseMirrorNode } from '@tiptap/pm/model'
 import { inkLayers } from '../shared/schema.js'
+import { englishWords } from '../shared/reading.js'
 
 export interface InkLayer { color: string; width: 'wide' | 'fine'; id: string; parent?: string }
 export interface InkRange { id: string; from: number; to: number; color: string; width: 'wide' | 'fine' }
 export interface InkRun { from: number; to: number; layers: InkLayer[]; range: InkRange }
 export interface AnalysisTarget { id: string; from: number }
+
+export function canAnalyze(doc: ProseMirrorNode, range: InkRange) {
+  return englishWords(doc.textBetween(range.from, range.to, ' ', ' ')).length > 1
+}
 
 export function readInk(doc: ProseMirrorNode) {
   const runs: InkRun[] = []

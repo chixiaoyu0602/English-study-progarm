@@ -25,6 +25,8 @@ jobs:
       - run: npx install-electron --no
       - run: npx playwright install chromium
       - run: npm test
+      - name: Verify offline Windows IPA speech synthesis
+        run: node scripts/test-speech.mjs
       - run: npm run build
       - name: Build portable Windows executable
         run: node scripts/package-windows.mjs
@@ -58,6 +60,7 @@ jobs:
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           name: MarkNote-Windows-x64
@@ -68,4 +71,8 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" release/* --title "拾光笔记 $RELEASE_TAG" --notes "Windows 10/11 x64 免安装版。下载 .exe 后双击运行。新增两层片段分析：主文给从句或短语涂色，点击色块打开无外层底色的文字，在框内用粗细笔分析内部成分。关闭后主文保持第一层，内部标记自动保存，不会再打开第三层。支持颜色自定义、擦除、撤销、日夜模式和备份。旧版内层标记会迁入分析框，文章和单词本保留。新备份格式为 4，请用 v1.3.0 或更新版本打开。程序未购买商业代码签名证书。"
+          if [ -f "docs/releases/$RELEASE_TAG.md" ]; then
+            gh release create "$RELEASE_TAG" release/* --title "拾光笔记 $RELEASE_TAG" --notes-file "docs/releases/$RELEASE_TAG.md"
+          else
+            gh release create "$RELEASE_TAG" release/* --title "拾光笔记 $RELEASE_TAG" --generate-notes
+          fi

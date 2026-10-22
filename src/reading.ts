@@ -1,6 +1,7 @@
 import type { Editor } from '@tiptap/core'
 import type { Note, WordSource } from './model'
 import { normalizeWord } from '../shared/dictionary.js'
+import { sentenceSegments } from '../shared/reading.js'
 
 export interface WordRequest { query: string; source: WordSource | null }
 export function wordFromArticle(editor: Editor, note: Note, position?: number): WordRequest | null {
@@ -18,8 +19,7 @@ export function wordFromArticle(editor: Editor, note: Note, position?: number): 
   }
   const query = normalizeWord(selected)
   if (!query) return null
-  const segmenter = new Intl.Segmenter('en', { granularity: 'sentence' })
-  let quote = [...segmenter.segment(paragraph)].find(segment => offset >= segment.index && offset < segment.index + segment.segment.length)?.segment.trim() || paragraph.trim()
+  let quote = sentenceSegments(paragraph).find(segment => offset >= segment.from && offset < segment.to)?.text.trim() || paragraph.trim()
   if (quote.length > 1200) {
     const start = Math.max(0, offset - 400)
     quote = `${start ? '…' : ''}${paragraph.slice(start, start + 1196)}…`

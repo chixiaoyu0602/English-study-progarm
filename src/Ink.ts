@@ -4,20 +4,22 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { closeHistory } from '@tiptap/pm/history'
 import { inkLayers, isColor, MAX_INK_LAYERS } from '../shared/schema.js'
 import { inkBackground } from '../shared/ink-colors.js'
-import { readInk, analysisRange, type AnalysisTarget, type InkLayer } from './ink-ranges'
+import { readInk, analysisRange, canAnalyze, type AnalysisTarget, type InkLayer } from './ink-ranges'
 
 export { analysisAt, analysisRange } from './ink-ranges'
 
 const inkKey = new PluginKey<DecorationSet>('primary-ink')
 function decorations(doc: Editor['state']['doc']) {
+  const eligible = new Map<ReturnType<typeof readInk>[number]['range'], boolean>()
   return DecorationSet.create(doc, readInk(doc).map(run => {
     const root = run.layers[0]
     const wide = root.width === 'wide' ? { ...root, depth: 0 } : undefined
     const fine = root.width === 'fine' ? [root] : []
+    if (!eligible.has(run.range)) eligible.set(run.range, canAnalyze(doc, run.range))
+    const clickable = eligible.get(run.range)
     return Decoration.inline(run.from, run.to, {
-      class: 'ink-surface', 'data-analysis-id': root.id, 'data-visible-color': root.color,
-      ...(run.from === run.range.from ? { role: 'button', tabindex: '0', 'aria-label': '打开片段分析' } : {}),
-      title: '点击打开片段分析',
+      class: 'ink-surface', 'data-visible-color': root.color,
+      ...(clickable ? { 'data-analysis-id': root.id, title: '点击打开片段分析', ...(run.from === run.range.from ? { role: 'button', tabindex: '0', 'aria-label': '打开片段分析' } : {}) } : {}),
       style: `--ink-light:${inkBackground(wide, fine, 'light')};--ink-dark:${inkBackground(wide, fine, 'dark')}`,
     })
   }))

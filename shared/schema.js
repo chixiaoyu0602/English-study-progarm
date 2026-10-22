@@ -72,11 +72,17 @@ export function validateNotebook(value) {
       throw new Error('备份中的笔记格式无效。每篇笔记最多支持 20 万字符。')
     }
     ids.add(note.id)
+    if (note.sentenceBreaks !== undefined) {
+      const breaks = note.sentenceBreaks
+      const size = note.content.content.reduce((sum, paragraph) => sum + 2 + (paragraph.content || []).reduce((length, node) => length + (node.type === 'text' ? node.text.length : 1), 0), 0)
+      if (!breaks || !['split', 'join'].every(key => Array.isArray(breaks[key]) && breaks[key].length <= MAX_TEXT && breaks[key].every(pos => Number.isSafeInteger(pos) && pos > 0 && pos < size))) throw new Error('笔记的分句设置无效。')
+    }
   }
   if (!['light', 'dark'].includes(value.theme) || !isColor(value.color) || !['wide', 'fine'].includes(value.pen) ||
     !Array.isArray(value.customColors) || value.customColors.length > 8 || !value.customColors.every(isColor) ||
     !Number.isInteger(value.fontSize) || value.fontSize < 16 || value.fontSize > 28 ||
     !(value.activeId === null || ids.has(value.activeId))) throw new Error('备份中的偏好设置无效。')
+  if (value.readingMode !== undefined && !['original', 'sentences'].includes(value.readingMode)) throw new Error('阅读模式无效。')
   const vocabulary = value.vocabulary === undefined && value.version < 3 ? [] : value.vocabulary
   if (!Array.isArray(vocabulary) || vocabulary.length > MAX_VOCABULARY) throw new Error('单词本格式无效，或超过 5000 个单词。')
   const words = new Set()

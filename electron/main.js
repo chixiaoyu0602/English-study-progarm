@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url'
 import { mkdir, readFile, rename, writeFile, copyFile, stat } from 'node:fs/promises'
 import { mkdirSync } from 'node:fs'
 import { parseNotebook, validateNotebook, MAX_FILE_BYTES } from '../shared/schema.js'
+import { speakWord, stopSpeech } from './speech.js'
 
 const dirname = path.dirname(fileURLToPath(import.meta.url))
 // Optional override for development/testing; the Windows app normally uses %APPDATA%/marknote.
@@ -32,6 +33,9 @@ else {
   app.on('second-instance', () => { if (window) { if (window.isMinimized()) window.restore(); window.focus() } })
   app.whenReady().then(async () => {
     Menu.setApplicationMenu(null)
+    ipcMain.handle('speech:speak', (_event, request) => speakWord(request))
+    ipcMain.handle('speech:stop', () => stopSpeech())
+    app.on('before-quit', stopSpeech)
     session.defaultSession.setPermissionRequestHandler((_contents, _permission, callback) => callback(false))
     session.defaultSession.webRequest.onHeadersReceived((details, callback) => callback({ responseHeaders: {
       ...details.responseHeaders,
@@ -93,6 +97,7 @@ else {
     let quitting = false
     let closing = false
     window.on('close', event => {
+      stopSpeech()
       if (quitting) return
       event.preventDefault()
       if (closing) return
