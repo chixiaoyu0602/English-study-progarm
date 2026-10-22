@@ -17,6 +17,7 @@ async function launch() {
     env: { ...process.env, MARKNOTE_USER_DATA_DIR: dataDir },
   })
   const page = await app.firstWindow()
+  await page.context().setOffline(true)
   await expect(page.getByRole('textbox', { name: '笔记正文' })).toBeVisible()
   return page
 }
@@ -37,8 +38,21 @@ try {
   let disk = JSON.parse(await readFile(notebookPath, 'utf8'))
   expect(disk.notes[0].title).toBe('桌面保存测试')
   expect(disk.theme).toBe('dark')
-  expect(disk.version).toBe(2)
+  expect(disk.version).toBe(3)
   expect(disk.notes[0].content.content[0].content[0].marks[0].attrs.layers).toHaveLength(3)
+  // The packaged dictionary must work with the renderer explicitly offline and CSP enabled.
+  await page.getByRole('button', { name: '打开单词本' }).click()
+  await page.getByRole('textbox', { name: '搜索单词或中文释义' }).fill('puma')
+  await page.getByRole('textbox', { name: '搜索单词或中文释义' }).press('Enter')
+  await expect(page.getByRole('dialog', { name: 'puma' })).toContainText('美洲狮')
+  await page.getByRole('button', { name: '加入单词本', exact: true }).click()
+  await page.getByRole('button', { name: '关闭查词' }).click()
+  await expect(page.getByRole('article', { name: '单词 puma' })).toContainText('美洲狮')
+  await expect(page.getByRole('status').filter({ hasText: '已保存到本机' })).toBeVisible()
+  disk = JSON.parse(await readFile(notebookPath, 'utf8'))
+  expect(disk.vocabulary[0].word).toBe('puma')
+  expect(disk.vocabulary[0].meaning).toContain('美洲狮')
+  await page.locator('.note-card').first().click()
   // Exercise actual native-dialog IPC without requiring a person to click an OS dialog.
   await app.evaluate(({ dialog }, file) => {
     dialog.showSaveDialog = async () => ({ canceled: false, filePath: file })
@@ -47,6 +61,7 @@ try {
   await page.getByRole('button', { name: '导出备份' }).click()
   await expect(page.getByRole('status').filter({ hasText: '全部笔记已导出' })).toBeVisible()
   expect(JSON.parse(await readFile(backupPath, 'utf8')).notes[0].title).toBe('桌面保存测试')
+  expect(JSON.parse(await readFile(backupPath, 'utf8')).vocabulary[0].meaning).toContain('美洲狮')
   await page.getByRole('button', { name: '导入备份' }).click()
   await expect(page.locator('.note-card')).toHaveCount(2)
   // Close before the 250 ms autosave delay: the close handshake must flush this edit.
@@ -62,6 +77,7 @@ try {
   await expect(page.getByRole('textbox', { name: '笔记标题' })).toHaveValue('关闭前最后一次编辑')
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
   await expect(page.locator('.ink')).toHaveAttribute('data-layer-count', '3')
+  await expect(page.locator('.wordbook-count')).toHaveText('1')
   await app.close(); app = undefined
   // Corrupt the primary file while stopped. Recovery must preserve it and use a valid backup.
   await writeFile(notebookPath, 'corrupted-primary-for-test')

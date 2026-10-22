@@ -54,6 +54,8 @@ kbd { font: 10px "Segoe UI", sans-serif; border: 1px solid var(--border); backgr
 .sidebar-bottom > span:last-child { margin-left: auto; font-size: 10px; }
 .offline-dot { background: #8ea16e; width: 5px; height: 5px; border-radius: 50%; }
 .main { min-width: 0; flex: 1; display: flex; flex-direction: column; position: relative; }
+.reading-view { display: contents; }
+.reading-view.reading-hidden { display: none; }
 .topbar { height: 75px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between; gap: 15px; padding: 0 31px; border-bottom: 1px solid var(--border); }
 .topbar-left { display: flex; align-items: center; gap: 22px; min-width: 0; }
 .icon-button { display: inline-flex; align-items: center; justify-content: center; width: 31px; height: 31px; border-radius: 6px; color: var(--secondary); }
@@ -157,6 +159,59 @@ input[type="color"] { width: 42px; height: 37px; background: transparent; paddin
 .modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin-top: 28px; }
 .loading { height: 100vh; display: flex; flex-direction: column; justify-content: center; align-items: center; color: var(--accent); gap: 15px; font-size: 13px; }
 .spin { animation: spin 1s linear infinite; }
+.wordbook-nav { display: flex; align-items: center; gap: 10px; padding: 11px 12px; margin: -8px 0 20px; border-radius: 7px; color: var(--secondary); font-size: 12px; }
+.wordbook-nav:hover { background: var(--hover); }
+.wordbook-nav.active { color: var(--accent); background: var(--accent-soft); }
+.wordbook-count { margin-left: auto; font-size: 10px; color: var(--muted); }
+.lookup-button { display: flex; align-items: center; gap: 7px; border-left: 1px solid var(--border); padding: 7px 0 7px 17px; color: var(--accent); font-size: 11px; }
+.lookup-button:hover:not(:disabled) { color: var(--text); }
+.dictionary-card { position: absolute; z-index: 25; top: 151px; right: 28px; width: 340px; max-height: calc(100% - 200px); display: flex; flex-direction: column; overflow: hidden; padding: 18px 22px 15px; border: 1px solid var(--selected-border); border-radius: 12px; background: var(--paper); box-shadow: 0 12px 45px #00000026; }
+.dictionary-scroll { min-height: 0; overflow-y: auto; }
+.dictionary-card > h2, .dictionary-top, .save-word, .dictionary-credit { flex-shrink: 0; }
+.dictionary-top { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 10px; letter-spacing: 1px; }
+.dictionary-top .icon-button { width: 25px; height: 25px; }
+.dictionary-card h2 { font: 500 29px Georgia, serif; overflow-wrap: anywhere; margin: 13px 0 8px; }
+.phonetic { font-family: "Segoe UI", sans-serif; color: var(--muted); font-size: 12px; }
+.dictionary-card .phonetic { margin: 0 0 17px; }
+.dictionary-loading { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; padding: 22px 0; }
+.dictionary-meaning { white-space: pre-line; overflow-wrap: anywhere; font-size: 13px; line-height: 1.9; color: var(--text); }
+.dictionary-match, .dictionary-missing { color: var(--secondary); font-size: 12px; line-height: 1.8; }
+.dictionary-source { border-left: 2px solid var(--selected-border); margin: 20px 0; padding: 1px 0 1px 12px; font-size: 12px; line-height: 1.8; color: var(--secondary); overflow-wrap: anywhere; }
+.dictionary-source > span { display: block; color: var(--muted); font-size: 10px; margin-bottom: 6px; }
+.save-word { margin-top: 20px; width: 100%; font-size: 12px; }
+.save-word:disabled { opacity: 1; background: var(--accent-soft); color: var(--accent); }
+.dictionary-credit { color: var(--muted); font-size: 9px; margin: 14px 0 0; text-align: center; }
+.wordbook-scroll { overflow-y: auto; flex: 1; scrollbar-gutter: stable; }
+.wordbook-page { max-width: 900px; padding: 43px 42px 30px; margin: 0 auto; }
+.wordbook-heading { display: flex; align-items: center; gap: 17px; margin-bottom: 30px; }
+.wordbook-symbol { display: grid; place-items: center; padding: 15px; background: var(--accent-soft); color: var(--accent); border-radius: 15px; }
+.wordbook-heading h1 { display: flex; align-items: center; gap: 13px; font: 600 26px SimSun, serif; margin: 0 0 10px; }
+.wordbook-heading h1 > span { color: var(--muted); font: 11px "Segoe UI", sans-serif; }
+.wordbook-heading p { color: var(--secondary); font-size: 11px; margin: 0; letter-spacing: .4px; }
+.wordbook-search { display: flex; align-items: center; gap: 11px; padding: 12px 15px; background: var(--paper); border: 1px solid var(--border); border-radius: 7px; color: var(--muted); margin-bottom: 27px; }
+.wordbook-search input { width: 100%; min-width: 0; font-size: 12px; border: none; background: transparent; outline: none; }
+.wordbook-search input:focus-visible { outline: none; }
+.wordbook-search:focus-within { border-color: var(--selected-border); }
+.wordbook-search button { color: var(--accent); font-size: 12px; white-space: nowrap; border-left: 1px solid var(--border); padding-left: 15px; }
+.wordbook-empty { display: flex; flex-direction: column; align-items: center; text-align: center; color: var(--muted); padding: 58px 0 75px; }
+.wordbook-empty > svg { color: var(--accent); opacity: .6; }
+.wordbook-empty h2 { font: 500 20px SimSun, serif; color: var(--secondary); margin: 24px 0 5px; }
+.wordbook-empty p { color: var(--muted); font-size: 12px; line-height: 1.8; }
+.word-list { display: flex; flex-direction: column; gap: 15px; }
+.word-card { padding: 22px 27px; background: var(--paper); border: 1px solid var(--border); border-radius: 8px; }
+.word-card-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.word-card-heading > div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 12px; }
+.word-card h2 { font: 500 24px Georgia, serif; margin: 0; overflow-wrap: anywhere; }
+.remove-word { opacity: .6; }
+.remove-word:hover { color: #b65c50; opacity: 1; }
+.word-meaning { font-size: 13px; line-height: 1.9; white-space: pre-line; color: var(--text); overflow-wrap: anywhere; margin: 14px 0 0; }
+.word-source { border-top: 1px solid var(--border); padding-top: 13px; margin-top: 17px; }
+.word-source blockquote { border-left: 2px solid var(--selected-border); padding-left: 11px; margin: 0 0 12px; color: var(--secondary); font-size: 12px; line-height: 1.8; overflow-wrap: anywhere; }
+.word-source > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--muted); font-size: 10px; }
+.word-source button { display: flex; align-items: center; gap: 3px; font-size: 10px; color: var(--accent); flex-shrink: 0; }
+.source-removed { font-size: 9px; opacity: .7; }
+.wordbook-footnote { font-size: 10px; text-align: center; line-height: 1.8; color: var(--muted); margin: 26px 0 0; }
+@media (max-width: 1000px) { .wordbook-page { padding: 30px 25px; } .dictionary-card { right: 19px; } .lookup-button { padding-left: 12px; } .lookup-button span { display: none; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 ::-webkit-scrollbar { width: 7px; height: 7px; }
 ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--muted) 30%, transparent); border-radius: 5px; }

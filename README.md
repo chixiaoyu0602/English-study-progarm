@@ -1,12 +1,23 @@
 # 拾光笔记 · MarkNote
 
-一张安静的纸，几支顺手的记号笔。为阅读和英语学习做的简洁桌面记事本。
+为英语精读准备的离线桌面笔记：粘贴文章，用颜色分析句子结构，将生词连同原句收藏。
 
-**[下载 Windows 免安装版 v1.0.1](https://github.com/chixiaoyu0602/English-study-progarm/releases/download/v1.0.1/MarkNote-1.0.1-Windows-x64.exe)** · [版本和 SHA-256 校验值](https://github.com/chixiaoyu0602/English-study-progarm/releases/tag/v1.0.1) · [自动构建](https://github.com/chixiaoyu0602/English-study-progarm/actions)
+**[下载 Windows 免安装版 v1.1.0](https://github.com/chixiaoyu0602/English-study-progarm/releases/download/v1.1.0/MarkNote-1.1.0-Windows-x64.exe)** · [版本和 SHA-256 校验值](https://github.com/chixiaoyu0602/English-study-progarm/releases/tag/v1.1.0) · [自动构建](https://github.com/chixiaoyu0602/English-study-progarm/actions)
 
-适用于 **Windows 10 / 11，64 位 x64**。下载 `.exe` 后双击运行，无需安装 Node.js、浏览器扩展或注册账号。应用完全离线；v1.0 没有云同步。当前构建未购买商业代码签名证书，发布者会显示为未知。
+适用于 **Windows 10 / 11，64 位 x64**。下载 `.exe` 后双击运行，无需安装 Node.js、浏览器扩展或注册账号。应用完全离线，没有云同步。当前构建未购买商业代码签名证书，发布者会显示为未知。
 
-![拾光笔记 · 多层标注](docs/layers.png)
+![文章中查词收藏](docs/dictionary.png)
+
+## v1.1.0：离线单词本
+
+- 文章中右键单词，查看中文释义和音标，一键加入单词本；也支持选中文字后点「查词」或按 `Ctrl D`。记号笔模式下右键也能查词，不会误涂文字。
+- 内置 ECDICT 的 **398,433 个英汉单词词条**，无需联网、账号或 API 密钥。对有原形信息的词，同时显示原形释义，例如 `ran` 会补充 `run` 的中文解释。
+- 收藏时自动保存文章原句和出处，可从单词本回到原文。支持搜索、去重、移出单词本；移除文章后仍保留已收藏的原句。
+- 单词本和文章一起自动保存和备份。导入备份会合并单词，按单词去重，并修复导入文章的出处链接。
+
+![单词本](docs/wordbook.png)
+
+词典列出词语的多个义项，结合原句判断具体含义。暂未收录的词会明确提示；不会凭空生成释义。单词本也可以直接输入英文查词并收藏。
 
 ## v1.0.1 更新
 
@@ -25,14 +36,16 @@
 4. 用橡皮擦拖选文字，每次擦除最上层；重复擦除可清空该范围的标注。撤销、重做均支持键盘操作。
 5. 右上角的太阳／月亮切换日间和夜间模式；底部的 `− / +` 调节阅读字号。
 
-**笔记会自动保存到本机。**「导出备份」会保存所有笔记、标注和偏好为 `.marknote` 文件。点击「导入备份」恢复内容，导入会新增笔记，保留现有笔记；同一文件反复导入会产生副本。建议定期导出备份。
+在文章中**右键生词**，点「加入单词本」，即可收藏带中文释义和原句的单词。左侧「单词本」可随时查看。
 
-标注会跟随文字编辑、换行和窗口缩放。v1.0 提供针对文字的拖选标注，手绘图形和 PDF 标注不在此版本范围内。粘贴时会去掉来源网页的排版、图片和链接，只保留纯文本。
+**笔记和单词本会自动保存到本机。**「导出备份」会保存所有笔记、标注、单词本和偏好为 `.marknote` 文件。点击「导入备份」恢复内容，导入会新增笔记，单词按词头去重并保留已有释义；同一文件反复导入会产生文章副本，但不会重复添加相同单词。建议定期导出备份。
+
+标注会跟随文字编辑、换行和窗口缩放。提供针对文字的拖选标注，手绘图形和 PDF 标注不在此版本范围内。粘贴时会去掉来源网页的排版、图片和链接，只保留纯文本。
 
 <details>
 <summary>夜间模式</summary>
 
-![拾光笔记 · 夜间多层标注](docs/layers-dark.png)
+![单词本 · 夜间模式](docs/wordbook-dark.png)
 
 </details>
 
@@ -44,6 +57,7 @@ Windows 本地数据位于 `%APPDATA%\MarkNote\notebook.json`；旁边的 `.bak`
 
 | 操作 | 快捷键 |
 | --- | --- |
+| 选词查释义和收藏 | `Ctrl D` 或右键单词 |
 | 新建笔记 | `Ctrl N` |
 | 立即保存 | `Ctrl S` |
 | 撤销／重做 | `Ctrl Z` / `Ctrl Shift Z` |
@@ -51,7 +65,7 @@ Windows 本地数据位于 `%APPDATA%\MarkNote\notebook.json`；旁边的 `.bak`
 | 橡皮擦 | `Ctrl Shift E` |
 | 回到文字工具、关闭弹窗 | `Esc` |
 
-每篇最多 20 万字符，最多 500 篇笔记；整个笔记库和导入备份均限制为 10 MB。搜索支持标题和正文。切换笔记后会重新建立该篇的撤销历史，撤销历史不跨应用重启保存；删除笔记需要确认且不能撤销。
+每篇最多 20 万字符，最多 500 篇笔记、5000 个收藏单词；整个用户笔记库和导入备份均限制为 10 MB（内置词典不占此额度）。搜索支持标题和正文。切换笔记后会重新建立该篇的撤销历史，切换单词本再返回同一文章时保留撤销历史，撤销历史不跨应用重启保存；删除笔记需要确认且不能撤销。
 
 ## 开发
 
@@ -70,9 +84,9 @@ npm run desktop     # 构建并打开真正的桌面应用；数据写入磁盘
 
 ```sh
 npx playwright install chromium
-npm test            # 7 项数据校验测试 + 13 项界面功能测试
+npm test            # 18 项词典／数据测试 + 21 项界面功能测试
 npm run test:desktop # 桌面桥接、磁盘保存、关闭刷新、备份导入导出与损坏恢复
-npm run dist:win     # release/MarkNote-1.0.1-Windows-x64.exe
+npm run dist:win     # release/MarkNote-1.1.0-Windows-x64.exe
 ```
 
 Windows 原生构建可在 `npm run build` 后运行 `node scripts/package-windows.mjs`，嵌入图标和版本信息，同时避免 Windows 命令行的参数解析差异。Linux 交叉构建默认跳过 Windows 资源编辑，不需要 Wine，功能保持一致。
@@ -98,6 +112,20 @@ Electron 下载遵循系统代理和 CA 配置，并使用官方 checksum 校验
 
 推送 `v*` 标签还会在测试全部通过后自动创建 GitHub Release，并上传 exe 和 `SHA256SUMS.txt`。工作流使用 GitHub 自带的临时令牌，不需要个人访问令牌。源码仓库中的 `downloads/` 也保留 v1.0.0 可执行文件，供直接下载；后续版本可通过 Releases 分发。
 
-v1.0.1 本地已通过 7 项数据校验测试、13 项界面测试和 Electron 桌面验证，覆盖彩色笔形光标、多层嵌套、交叠选区、跨行拖选、逐层擦除、撤销、备份和旧数据迁移。Windows 流水线还会验证打包后的程序能将三层标注写入磁盘并在重新启动后恢复，以及关闭前保存和损坏文件恢复。对应结果可在上方的自动构建页面查看。
+本地已通过内置词典完整性、真实中文释义、词形匹配、收藏与去重、出处、备份迁移、标注和撤销等测试。桌面验证在渲染器明确断网的情况下查词，确认真实磁盘保存、导入导出和重启恢复。Windows 流水线还会对打包后的 exe 运行相同的桌面验证；对应结果可在上方自动构建页面查看。
 
-MIT License。
+## 词典来源与复现
+
+词条数据来自 [skywind3000/ECDICT](https://github.com/skywind3000/ECDICT)，固定在提交 `bc015ed2e24a7abef49fc6dbbb7fe32c1dadaf8b`，按其 MIT 许可证分发。完整署名和许可随程序包含在 [DICTIONARY-LICENSE.txt](public/DICTIONARY-LICENSE.txt) 中。原始数据包含 76 万余条词语，本程序保留有中文释义的英文单词、连字符词和缩略词，包含音标、原形及词形信息。
+
+词典数据按首字母分包，查词时按需加载，不影响正常阅读的启动速度；运行中所有内容均来自程序本地。构建产物与用户笔记分开存储。数据与每个分包的 SHA-256 记录在 [metadata.json](src/data/dictionary/metadata.json) 中。
+
+词库已提交到仓库，普通开发和打包不需要下载或重新生成。需要复现时使用 Python 3：
+
+```sh
+python3 scripts/build-dictionary.py
+```
+
+脚本从固定提交下载原始 CSV 和许可证，严格校验 SHA-256 后生成相同分包；也支持 `--source /path/ecdict.csv --license /path/LICENSE` 复用已下载的原始文件。新版笔记备份格式为 3，自动兼容格式 1、2 的旧文章和标注，请用 v1.1.0 或更新版本打开包含单词本的备份。
+
+应用代码采用 MIT License。

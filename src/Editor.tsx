@@ -6,12 +6,14 @@ import { Ink, paintSelection } from './Ink'
 import { toolCursor } from './cursor'
 import type { Note } from './model'
 import { MAX_TEXT } from '../shared/schema.js'
+import { wordFromArticle, type WordRequest } from './reading'
 
 export type Tool = 'text' | 'wide' | 'fine' | 'erase'
 interface Props {
   note: Note; tool: Tool; color: string; fontSize: number;
   onChange: (content: JSONContent) => void; onReady: (editor: Editor | null) => void;
   onSelection: (selected: boolean) => void; onLimit: () => void; onLayerLimit: () => void;
+  onLookup: (request: WordRequest) => void;
 }
 export default function NoteEditor(props: Props) {
   const current = useRef(props)
@@ -55,7 +57,15 @@ export default function NoteEditor(props: Props) {
     current.current.onSelection(false)
   }
   return <div className={`editor-body tool-${props.tool}`} style={{ '--reading-size': `${props.fontSize}px`, '--active-ink': props.color, '--tool-cursor': toolCursor(props.tool, props.color) } as React.CSSProperties}
-    onPointerUp={() => requestAnimationFrame(apply)}
+    onPointerUp={event => { if (event.button === 0) requestAnimationFrame(apply) }}
+    onContextMenu={event => {
+      event.preventDefault()
+      if (!editor) return
+      const position = editor.view.posAtCoords({ left: event.clientX, top: event.clientY })
+      if (!position) return
+      const request = wordFromArticle(editor, current.current.note, position.pos)
+      if (request) current.current.onLookup(request)
+    }}
     onKeyUp={event => { if (event.key === 'Shift' || event.shiftKey) apply() }}>
     <EditorContent editor={editor} />
   </div>

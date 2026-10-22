@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { docText, parseNotebook, validateNotebook, EMPTY_DOC } from '../shared/schema.js'
 
-const book = () => ({ version: 2, notes: [{ id: 'test', title: 'Study', content: structuredClone(EMPTY_DOC), createdAt: 1, updatedAt: 1 }], activeId: 'test', theme: 'light', color: '#f3cf62', pen: 'wide', customColors: [], fontSize: 20 })
+const book = () => ({ version: 3, vocabulary: [], notes: [{ id: 'test', title: 'Study', content: structuredClone(EMPTY_DOC), createdAt: 1, updatedAt: 1 }], activeId: 'test', theme: 'light', color: '#f3cf62', pen: 'wide', customColors: [], fontSize: 20 })
 test('round-trips Unicode, line breaks, both pen widths and custom colors', () => {
   const data = book()
   data.notes[0].content.content[0].content = [
@@ -43,7 +43,7 @@ test('upgrades legacy notebooks without changing their note IDs, content or orig
   const legacy = { ...book(), version: 1 }
   legacy.notes[0].content.content[0].content = [{ type: 'text', text: 'old highlight', marks: [{ type: 'ink', attrs: { color: '#f3cf62', width: 'wide' } }] }]
   const upgraded = parseNotebook(JSON.stringify(legacy))
-  assert.equal(upgraded.version, 2)
+  assert.equal(upgraded.version, 3)
   assert.deepEqual(upgraded.notes, legacy.notes)
   assert.equal(legacy.version, 1)
 })

@@ -1,10 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Editor, JSONContent } from '@tiptap/core'
-import { ArrowDownToLine, ArrowUpFromLine, Check, CircleHelp, Eraser, Highlighter, LoaderCircle, Minus, Moon, NotebookPen, PanelLeftClose, PanelLeftOpen, Plus, Redo2, Search, Sun, Trash2, Type, Underline, Undo2, X } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, BookOpen, Check, CircleHelp, Eraser, Highlighter, LoaderCircle, Minus, Moon, NotebookPen, PanelLeftClose, PanelLeftOpen, Plus, Redo2, Search, Sun, Trash2, Type, Underline, Undo2, X } from 'lucide-react'
 import NoteEditor, { type Tool } from './Editor'
 import { paintSelection } from './Ink'
-import { COLORS, downloadBackup, initialNotebook, newNote, type Notebook, type Note } from './model'
-import { docText, isColor, MAX_FILE_BYTES, MAX_NOTES, parseNotebook, validateNotebook } from '../shared/schema.js'
+import { COLORS, downloadBackup, initialNotebook, newNote, type Notebook, type Note, type WordSource } from './model'
+import { docText, isColor, MAX_FILE_BYTES, MAX_NOTES, MAX_VOCABULARY, mergeNotebooks, parseNotebook, validateNotebook } from '../shared/schema.js'
+import { wordFromArticle, type WordRequest } from './reading'
+import type { DictionaryEntry } from './dictionary'
+import DictionaryCard from './DictionaryCard'
+import Wordbook from './Wordbook'
 
 const STORAGE_KEY = 'marknote.notebook.v1'
 function dateLabel(time: number) { return new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric' }).format(time) }
@@ -37,6 +41,8 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
   const bookRef = useRef(book)
   bookRef.current = book
   const [tool, setTool] = useState<Tool>('text')
+  const [view, setView] = useState<'notes' | 'vocabulary'>('notes')
+  const [lookup, setLookup] = useState<WordRequest | null>(null)
   const [editor, setEditor] = useState<Editor | null>(null)
   const [selection, setSelection] = useState(false)
   const [query, setQuery] = useState('')
@@ -109,10 +115,25 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
   const addNote = useCallback(() => {
     if (bookRef.current.notes.length >= MAX_NOTES) { notify('最多支持 500 篇笔记，请先导出备份再整理。'); return }
     const note = newNote()
+    setView('notes'); setLookup(null)
     setBook(previous => ({ ...previous, notes: [note, ...previous.notes], activeId: note.id }))
     setTool('text'); setQuery(''); setSelection(false)
     setTimeout(() => document.querySelector<HTMLInputElement>('.note-title')?.focus(), 30)
   }, [notify])
+  const lookupSelected = () => {
+    const request = view === 'notes' && editor && current ? wordFromArticle(editor, current) : null
+    if (!request) { notify('请选中一个完整的英文单词，或在文章中的单词上点击右键。'); return }
+    setLookup(request); setColorsOpen(false)
+  }
+  const saveWord = (entry: DictionaryEntry, source: WordSource | null) => {
+    const previous = bookRef.current
+    if (previous.vocabulary.some(word => word.word === entry.word)) { notify('这个单词已经在单词本里了。'); return }
+    if (previous.vocabulary.length >= MAX_VOCABULARY) { notify('单词本最多支持 5000 个单词，请先导出备份再整理。'); return }
+    const next = { ...previous, vocabulary: [{ word: entry.word, phonetic: entry.phonetic, meaning: entry.meaning, source, addedAt: Date.now() }, ...previous.vocabulary] }
+    if (new TextEncoder().encode(JSON.stringify(next, null, 2)).length > MAX_FILE_BYTES) { notify('笔记库已达到 10 MB，请先导出备份并整理内容。'); return }
+    setBook(next)
+    notify(`${entry.word} 已加入单词本。`)
+  }
   const paint = (nextTool: Tool, color = book.color) => {
     setTool(nextTool)
     if (nextTool === 'wide' || nextTool === 'fine') setBook(previous => ({ ...previous, pen: nextTool }))
@@ -130,20 +151,16 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
       if (window.desktop) {
         const result = await window.desktop.export(bookRef.current)
         if (!result.ok) throw new Error(result.error)
-        if (!result.canceled) notify('全部笔记已导出，标注和颜色也一起保存了。')
-      } else { downloadBackup(bookRef.current); notify('备份已下载。') }
+        if (!result.canceled) notify('全部笔记已导出，标注和单词本也一起保存了。')
+      } else { downloadBackup(bookRef.current); notify('笔记和单词本备份已下载。') }
     } catch (error) { notify(error instanceof Error ? error.message : '导出失败。') }
     finally { setBusy(false) }
   }
   const mergeImport = (imported: Notebook) => {
-    validateNotebook(imported)
-    if (imported.notes.length + bookRef.current.notes.length > MAX_NOTES) throw new Error('导入后将超过 500 篇笔记，请先整理现有笔记。')
-    const now = Date.now()
-    const notes = imported.notes.map(note => ({ ...note, id: crypto.randomUUID(), updatedAt: now }))
-    const merged = { ...bookRef.current, notes: [...notes, ...bookRef.current.notes], activeId: notes[0]?.id || bookRef.current.activeId }
-    if (new TextEncoder().encode(JSON.stringify(merged)).length > MAX_FILE_BYTES) throw new Error('导入后的笔记库超过 10 MB，请先整理现有笔记。')
-    setBook(merged); setQuery(''); setTool('text'); setSelection(false)
-    notify(`已导入 ${notes.length} 篇笔记，原有笔记已保留。`)
+    const merged = mergeNotebooks(bookRef.current, imported)
+    setBook(merged.book); setQuery(''); setTool('text'); setSelection(false); setLookup(null)
+    setView(merged.importedNotes ? 'notes' : merged.importedWords ? 'vocabulary' : view)
+    notify(`已导入 ${merged.importedNotes} 篇笔记、${merged.importedWords} 个单词，已有内容已保留。`)
   }
   const importAll = async () => {
     if (!window.desktop) { input.current?.click(); return }
@@ -172,14 +189,15 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
     setDeleting(null); setSelection(false)
     notify('笔记已删除。')
   }
-  const actionsRef = useRef({ addNote, paint, persist })
-  actionsRef.current = { addNote, paint, persist }
+  const actionsRef = useRef({ addNote, paint, persist, lookupSelected })
+  actionsRef.current = { addNote, paint, persist, lookupSelected }
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { setHelp(false); setColorsOpen(false); setDeleting(null); setTool('text') }
+      if (event.key === 'Escape') { setHelp(false); setColorsOpen(false); setDeleting(null); setLookup(null); setTool('text') }
       if (!(event.ctrlKey || event.metaKey)) return
       if (event.key.toLowerCase() === 'n') { event.preventDefault(); actionsRef.current.addNote() }
       if (event.key.toLowerCase() === 's') { event.preventDefault(); void actionsRef.current.persist() }
+      if (event.key.toLowerCase() === 'd') { event.preventDefault(); actionsRef.current.lookupSelected() }
       if (event.shiftKey && ['h', 'u', 'e'].includes(event.key.toLowerCase())) {
         event.preventDefault()
         actionsRef.current.paint(event.key.toLowerCase() === 'h' ? 'wide' : event.key.toLowerCase() === 'u' ? 'fine' : 'erase')
@@ -189,28 +207,33 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
     return () => window.removeEventListener('keydown', onKey)
   }, [])
 
+  const saveStatus = <div className="save-status" role="status">{saveState === 'saving' ? <LoaderCircle size={13} className="spin" /> : saveState === 'error' ? <span className="error-dot" /> : <Check size={14} />}<span>{saveState === 'saving' ? '正在保存' : saveState === 'error' ? '保存失败' : '已保存到本机'}</span></div>
+
   return <div className={`app ${sidebar ? '' : 'sidebar-collapsed'}`}>
     {sidebar && <aside className="sidebar" aria-label="笔记列表">
       <div className="brand"><span className="brand-icon"><NotebookPen size={23} strokeWidth={1.7} /></span><div><strong>拾光笔记</strong><span>MARKNOTE</span></div></div>
       <button className="new-note" onClick={addNote}><Plus size={18} /> 新建笔记 <kbd>Ctrl N</kbd></button>
       <label className="search"><Search size={16} /><input aria-label="搜索笔记" placeholder="搜索你的笔记" value={query} onChange={event => setQuery(event.target.value)} />{query && <button aria-label="清空搜索" onClick={() => setQuery('')}><X size={13} /></button>}</label>
+      <button className={`wordbook-nav ${view === 'vocabulary' ? 'active' : ''}`} aria-label="打开单词本" aria-pressed={view === 'vocabulary'} onClick={() => { setView('vocabulary'); setLookup(null); setColorsOpen(false) }}><BookOpen size={17} /><span>单词本</span><span className="wordbook-count">{book.vocabulary.length}</span></button>
       <div className="list-heading"><span>全部笔记</span><span>{book.notes.length}</span></div>
       <div className="note-list">
-        {visibleNotes.map(note => <button key={note.id} className={`note-card ${note.id === book.activeId ? 'selected' : ''}`} onClick={() => { setBook(previous => ({ ...previous, activeId: note.id })); setSelection(false) }}>
+        {visibleNotes.map(note => <button key={note.id} className={`note-card ${view === 'notes' && note.id === book.activeId ? 'selected' : ''}`} onClick={() => { setBook(previous => ({ ...previous, activeId: note.id })); setSelection(false); setView('notes'); setLookup(null) }}>
           <span className="card-title">{note.title.trim() || '未命名笔记'}</span>
           <span className="card-preview">{docText(note.content).trim() || '从一段文字开始…'}</span>
           <span className="card-meta">{dateLabel(note.updatedAt)}<span className="card-dot" /></span>
         </button>)}
         {!visibleNotes.length && <div className="list-empty">{query ? '没有找到相关笔记' : '你的下一页，等你来写。'}</div>}
       </div>
-      <div className="sidebar-bottom"><span className="offline-dot" /> 本地保存，安心书写 <span>v1.0.1</span></div>
+      <div className="sidebar-bottom"><span className="offline-dot" /> 本地保存，安心书写 <span>v1.1.0</span></div>
     </aside>}
     <main className="main">
       <header className="topbar">
-        <div className="topbar-left"><button className="icon-button" aria-label={sidebar ? '收起侧栏' : '展开侧栏'} title={sidebar ? '收起侧栏' : '展开侧栏'} onClick={() => setSidebar(!sidebar)}>{sidebar ? <PanelLeftClose size={19} /> : <PanelLeftOpen size={19} />}</button><span className="breadcrumb">我的笔记 <span>/</span> <strong>{current?.title.trim() || (current ? '未命名笔记' : '开始记录')}</strong></span></div>
+        <div className="topbar-left"><button className="icon-button" aria-label={sidebar ? '收起侧栏' : '展开侧栏'} title={sidebar ? '收起侧栏' : '展开侧栏'} onClick={() => setSidebar(!sidebar)}>{sidebar ? <PanelLeftClose size={19} /> : <PanelLeftOpen size={19} />}</button><span className="breadcrumb">我的笔记 <span>/</span> <strong>{view === 'vocabulary' ? '单词本' : current?.title.trim() || (current ? '未命名笔记' : '开始记录')}</strong></span></div>
         <div className="topbar-actions"><button className="icon-button" title="使用帮助" aria-label="使用帮助" onClick={() => setHelp(true)}><CircleHelp size={18} /></button><span className="topbar-divider" /><button className="theme-switch" onClick={() => setBook(previous => ({ ...previous, theme: previous.theme === 'light' ? 'dark' : 'light' }))} aria-label={book.theme === 'light' ? '切换到夜间模式' : '切换到日间模式'}><span className={book.theme === 'light' ? 'active' : ''}><Sun size={15} /></span><span className={book.theme === 'dark' ? 'active' : ''}><Moon size={15} /></span></button><button className="export-button" aria-label="导出备份" title="导出全部笔记备份" onClick={() => void exportAll()} disabled={busy}><ArrowUpFromLine size={15} /><span>导出备份</span></button></div>
       </header>
       {saveError && <div className="error-banner" role="alert">{saveError} {loadError ? '请先导出当前内容；原文件不会被覆盖。' : '请导出备份，避免丢失。'}</div>}
+      {view === 'vocabulary' && <><Wordbook words={book.vocabulary} notes={book.notes} onLookup={query => setLookup({ query, source: null })} onRemove={word => { setBook(previous => ({ ...previous, vocabulary: previous.vocabulary.filter(entry => entry.word !== word) })); notify(`${word} 已移出单词本。`) }} onOpenNote={id => { setBook(previous => ({ ...previous, activeId: id })); setView('notes'); setLookup(null); setTool('text') }} /><footer className="statusbar">{saveStatus}<span>内置英汉词典 · 离线可用</span><span>{book.vocabulary.length} 个单词</span></footer></>}
+      <div className={`reading-view ${view === 'vocabulary' ? 'reading-hidden' : ''}`}>
       {current ? <>
         <section className="toolbar" aria-label="标注工具">
           <div className="tool-group" onMouseDown={event => event.preventDefault()}>
@@ -233,6 +256,7 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
           </div>
           <div className="toolbar-spacer" />
           <div className="undo-group" onMouseDown={event => event.preventDefault()}><button className="icon-button" title="撤销 · Ctrl Z" aria-label="撤销" disabled={!editor?.can().undo()} onClick={() => editor?.chain().focus().undo().run()}><Undo2 size={18} /></button><button className="icon-button" title="重做 · Ctrl Shift Z" aria-label="重做" disabled={!editor?.can().redo()} onClick={() => editor?.chain().focus().redo().run()}><Redo2 size={18} /></button></div>
+          <button className="lookup-button" title="选中单词查释义并收藏 · Ctrl D" aria-label="查词并加入单词本" disabled={!selection} onMouseDown={event => event.preventDefault()} onClick={lookupSelected}><BookOpen size={17} /><span>查词</span></button>
         </section>
         <div className="paper-scroll">
           <article className="paper" aria-label="当前笔记">
@@ -240,13 +264,15 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
             <input className="note-title" aria-label="笔记标题" placeholder="未命名笔记" maxLength={200} value={current.title} onChange={event => editNote(current.id, { title: event.target.value })} />
             <div className="note-byline"><span>{dateLabel(current.createdAt)}</span><span>·</span><span>{text.replace(/\s/g, '').length.toLocaleString()} 字符</span><span className="byline-tag">随心记</span></div>
             <div className="paper-rule" />
-            <NoteEditor key={current.id} note={current} tool={tool} color={book.color} fontSize={book.fontSize} onChange={(content: JSONContent) => editNote(current.id, { content })} onReady={setEditor} onSelection={setSelection} onLimit={() => notify('每篇笔记最多支持 20 万字符。请新建笔记继续。')} onLayerLimit={() => notify('同一段文字最多叠加 8 层，请先擦除一层再继续。')} />
+            <NoteEditor key={current.id} note={current} tool={tool} color={book.color} fontSize={book.fontSize} onChange={(content: JSONContent) => editNote(current.id, { content })} onReady={setEditor} onSelection={setSelection} onLimit={() => notify('每篇笔记最多支持 20 万字符。请新建笔记继续。')} onLayerLimit={() => notify('同一段文字最多叠加 8 层，请先擦除一层再继续。')} onLookup={request => { setLookup(request); setColorsOpen(false) }} />
             <div className="paper-end"><span /> <NotebookPen size={15} /> <span /></div>
           </article>
         </div>
-        <footer className="statusbar"><div className="save-status" role="status">{saveState === 'saving' ? <LoaderCircle size={13} className="spin" /> : saveState === 'error' ? <span className="error-dot" /> : <Check size={14} />}<span>{saveState === 'saving' ? '正在保存' : saveState === 'error' ? '保存失败' : '已保存到本机'}</span></div><div className="tool-hint">{selection ? '选择一支记号笔，为选中文字标注' : tool === 'text' ? '粘贴文字，或选择记号笔开始标注' : tool === 'erase' ? '拖选文字，擦除最上层，保留下层颜色' : `拖选文字，使用${tool === 'wide' ? '粗' : '细'}记号笔标注`}</div><div className="reading-size"><button aria-label="缩小字号" title="缩小字号" disabled={book.fontSize <= 16} onClick={() => setBook(previous => ({ ...previous, fontSize: previous.fontSize - 2 }))}><Minus size={13} /></button><span>{book.fontSize}</span><button aria-label="放大字号" title="放大字号" disabled={book.fontSize >= 28} onClick={() => setBook(previous => ({ ...previous, fontSize: previous.fontSize + 2 }))}><Plus size={13} /></button><span className="status-divider" /><span className="annotation-count">{marks} 处标注</span></div></footer>
+        <footer className="statusbar">{saveStatus}<div className="tool-hint">{selection ? '选择一支记号笔，为选中文字标注' : tool === 'text' ? '粘贴文字，或选择记号笔开始标注' : tool === 'erase' ? '拖选文字，擦除最上层，保留下层颜色' : `拖选文字，使用${tool === 'wide' ? '粗' : '细'}记号笔标注`}</div><div className="reading-size"><button aria-label="缩小字号" title="缩小字号" disabled={book.fontSize <= 16} onClick={() => setBook(previous => ({ ...previous, fontSize: previous.fontSize - 2 }))}><Minus size={13} /></button><span>{book.fontSize}</span><button aria-label="放大字号" title="放大字号" disabled={book.fontSize >= 28} onClick={() => setBook(previous => ({ ...previous, fontSize: previous.fontSize + 2 }))}><Plus size={13} /></button><span className="status-divider" /><span className="annotation-count">{marks} 处标注</span></div></footer>
       </> : <div className="empty-workspace"><div className="empty-icon"><NotebookPen size={36} strokeWidth={1.2} /></div><h1>新的一页，从这里开始</h1><p>写下灵感，粘贴好文，给值得记住的句子添一点颜色。</p><button className="primary-button" onClick={addNote}><Plus size={17} /> 新建第一篇笔记</button></div>}
-      <div className="library-actions"><button onClick={() => void importAll()} disabled={busy}><ArrowDownToLine size={15} /> 导入备份</button>{current && <button className="delete-note" onClick={() => setDeleting(current)} aria-label="删除当前笔记"><Trash2 size={15} /><span>删除笔记</span></button>}</div>
+      </div>
+      <div className="library-actions"><button onClick={() => void importAll()} disabled={busy}><ArrowDownToLine size={15} /> 导入备份</button>{view === 'notes' && current && <button className="delete-note" onClick={() => setDeleting(current)} aria-label="删除当前笔记"><Trash2 size={15} /><span>删除笔记</span></button>}</div>
+      {lookup && <DictionaryCard key={lookup.query} request={lookup} savedWords={new Set(book.vocabulary.map(entry => entry.word))} onSave={saveWord} onClose={() => setLookup(null)} />}
     </main>
     <input ref={input} type="file" accept=".marknote,.json" hidden onChange={event => void importFile(event.target.files?.[0])} />
     {toast && <div className="toast" role="status"><Check size={16} /><span>{toast}</span><button aria-label="关闭提示" onClick={() => setToast('')}><X size={14} /></button></div>}
@@ -258,7 +284,7 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
       if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
     }}>
       <button autoFocus className="modal-close icon-button" aria-label="关闭对话框" onClick={() => { setHelp(false); setDeleting(null) }}><X size={19} /></button>
-      {deleting ? <><div className="modal-symbol"><Trash2 size={25} /></div><h2 id="dialog-title">删除这篇笔记？</h2><p>「{deleting.title.trim() || '未命名笔记'}」将被永久删除。建议先导出备份，删除后无法撤销。</p><div className="modal-actions"><button className="secondary-button" onClick={() => setDeleting(null)}>保留笔记</button><button className="danger-button" onClick={deleteNote}>确认删除</button></div></> : <><div className="modal-symbol"><NotebookPen size={27} /></div><h2 id="dialog-title">一点颜色，记住更多</h2><p>拾光笔记 v1.0.1 · 为专注阅读而做</p><div className="help-steps"><div><span>01</span><p><strong>把文字放进来</strong>新建笔记，直接输入或粘贴文本。粘贴时会去除原有格式，让页面保持清爽。</p></div><div><span>02</span><p><strong>给重点一点颜色</strong>选择粗笔或细笔，再拖选文字。可在整段底色上继续标注小区域，最多叠加 8 层；橡皮擦每次只擦掉最上层。</p></div><div><span>03</span><p><strong>安心留下你的记录</strong>笔记自动保存在本机。用「导出备份」保存包含全部标注的 .marknote 文件，随时导回。导入会新增笔记，保留原有内容。</p></div></div><div className="shortcut-list"><span>新建笔记 <kbd>Ctrl N</kbd></span><span>撤销 <kbd>Ctrl Z</kbd></span><span>粗笔 <kbd>Ctrl Shift H</kbd></span><span>细笔 <kbd>Ctrl Shift U</kbd></span><span>橡皮擦 <kbd>Ctrl Shift E</kbd></span><span>回到文字 <kbd>Esc</kbd></span></div><p className="help-footnote">完全离线，无账号、无云同步。请定期导出备份。每篇最多 20 万字符，最多 500 篇，总备份不超过 10 MB。</p></>}
+      {deleting ? <><div className="modal-symbol"><Trash2 size={25} /></div><h2 id="dialog-title">删除这篇笔记？</h2><p>「{deleting.title.trim() || '未命名笔记'}」将被永久删除。建议先导出备份，删除后无法撤销。</p><div className="modal-actions"><button className="secondary-button" onClick={() => setDeleting(null)}>保留笔记</button><button className="danger-button" onClick={deleteNote}>确认删除</button></div></> : <><div className="modal-symbol"><NotebookPen size={27} /></div><h2 id="dialog-title">一点颜色，记住更多</h2><p>拾光笔记 v1.1.0 · 为专注阅读而做</p><div className="help-steps"><div><span>01</span><p><strong>把文字放进来</strong>新建笔记，直接输入或粘贴文本。粘贴时会去除原有格式，让页面保持清爽。</p></div><div><span>02</span><p><strong>给重点一点颜色</strong>选择粗笔或细笔，再拖选文字。可在整段底色上继续标注小区域，最多叠加 8 层；橡皮擦每次只擦掉最上层。</p></div><div><span>03</span><p><strong>安心留下你的记录</strong>文章中右键单词即可查中文释义并加入单词本，自动保留原句。也可选中单词按 Ctrl D。笔记和单词本一起自动保存、导出备份；导入会保留现有内容。</p></div></div><div className="shortcut-list"><span>查词收藏 <kbd>Ctrl D</kbd></span><span>新建笔记 <kbd>Ctrl N</kbd></span><span>撤销 <kbd>Ctrl Z</kbd></span><span>粗笔 <kbd>Ctrl Shift H</kbd></span><span>细笔 <kbd>Ctrl Shift U</kbd></span><span>橡皮擦 <kbd>Ctrl Shift E</kbd></span><span>回到文字 <kbd>Esc</kbd></span></div><p className="help-footnote">完全离线，无账号、无云同步。请定期导出备份。每篇最多 20 万字符，最多 500 篇，总备份不超过 10 MB。</p></>}
     </section></div>}
   </div>
 }

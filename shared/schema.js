@@ -1,7 +1,10 @@
+import { normalizeWord } from './dictionary.js'
+
 export const MAX_FILE_BYTES = 10 * 1024 * 1024
 export const MAX_NOTES = 500
 export const MAX_TEXT = 200000
 export const MAX_INK_LAYERS = 8
+export const MAX_VOCABULARY = 5000
 export const EMPTY_DOC = { type: 'doc', content: [{ type: 'paragraph' }] }
 export const isColor = (value) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
 export const isInkLayer = layer => !!layer && isColor(layer.color) && ['wide', 'fine'].includes(layer.width)
@@ -46,7 +49,7 @@ function validateDoc(doc) {
 }
 
 export function validateNotebook(value) {
-  if (!value || ![1, 2].includes(value.version) || !Array.isArray(value.notes) || value.notes.length > MAX_NOTES) throw new Error('不是有效的拾光笔记备份，或笔记数量超过 500 篇。')
+  if (!value || ![1, 2, 3].includes(value.version) || !Array.isArray(value.notes) || value.notes.length > MAX_NOTES) throw new Error('不是有效的拾光笔记备份，或笔记数量超过 500 篇。')
   const ids = new Set()
   for (const note of value.notes) {
     if (!note || typeof note.id !== 'string' || !note.id || ids.has(note.id) || note.id.length > 100 ||
@@ -59,8 +62,48 @@ export function validateNotebook(value) {
     !Array.isArray(value.customColors) || value.customColors.length > 8 || !value.customColors.every(isColor) ||
     !Number.isInteger(value.fontSize) || value.fontSize < 16 || value.fontSize > 28 ||
     !(value.activeId === null || ids.has(value.activeId))) throw new Error('备份中的偏好设置无效。')
-  // Upgrade only the envelope. An old app rejects format 2 instead of discarding layers.
-  return { ...value, version: 2 }
+  const vocabulary = value.vocabulary === undefined && value.version < 3 ? [] : value.vocabulary
+  if (!Array.isArray(vocabulary) || vocabulary.length > MAX_VOCABULARY) throw new Error('单词本格式无效，或超过 5000 个单词。')
+  const words = new Set()
+  for (const entry of vocabulary) {
+    if (!entry || normalizeWord(entry.word) !== entry.word || !entry.word || words.has(entry.word) ||
+      typeof entry.phonetic !== 'string' || entry.phonetic.length > 200 || typeof entry.meaning !== 'string' || !entry.meaning.trim() || entry.meaning.length > 8500 ||
+      !Number.isSafeInteger(entry.addedAt) || entry.addedAt < 0 || entry.addedAt > 8640000000000000) throw new Error('单词本中的单词或释义格式无效。')
+    const source = entry.source
+    if (source !== null && (!source || !(source.noteId === null || (typeof source.noteId === 'string' && source.noteId.length > 0 && source.noteId.length <= 100)) ||
+      typeof source.title !== 'string' || source.title.length > 200 || typeof source.quote !== 'string' || source.quote.length > 1200 ||
+      typeof source.selected !== 'string' || source.selected.length > 80 || !normalizeWord(source.selected))) throw new Error('单词的原文出处格式无效。')
+    words.add(entry.word)
+  }
+  // Preserve legacy notes verbatim; older apps reject format 3 instead of dropping vocabulary.
+  return { ...value, version: 3, vocabulary }
+}
+
+export function mergeNotebooks(current, incoming, newId = () => crypto.randomUUID()) {
+  current = validateNotebook(current)
+  incoming = validateNotebook(incoming)
+  if (incoming.notes.length + current.notes.length > MAX_NOTES) throw new Error('导入后将超过 500 篇笔记，请先整理现有笔记。')
+  const idMap = new Map(incoming.notes.map(note => [note.id, newId()]))
+  const notes = incoming.notes.map(note => ({ ...note, id: idMap.get(note.id), updatedAt: Date.now() }))
+  const seen = new Set(current.vocabulary.map(entry => entry.word))
+  const incomingWords = new Map(incoming.vocabulary.map(entry => [entry.word, entry]))
+  const currentNoteIds = new Set(current.notes.map(note => note.id))
+  const retained = current.vocabulary.map(entry => {
+    const replacement = incomingWords.get(entry.word)?.source
+    const hasArticle = entry.source?.noteId && currentNoteIds.has(entry.source.noteId)
+    if (!hasArticle && replacement?.noteId && idMap.has(replacement.noteId)) {
+      return { ...entry, source: { ...replacement, noteId: idMap.get(replacement.noteId) } }
+    }
+    return entry
+  })
+  const added = incoming.vocabulary.filter(entry => !seen.has(entry.word)).map(entry => ({
+    ...entry,
+    source: entry.source ? { ...entry.source, noteId: idMap.get(entry.source.noteId) || null } : null,
+  }))
+  if (current.vocabulary.length + added.length > MAX_VOCABULARY) throw new Error('导入后将超过 5000 个单词，请先整理单词本。')
+  const book = validateNotebook({ ...current, notes: [...notes, ...current.notes], vocabulary: [...added, ...retained], activeId: notes[0]?.id || current.activeId })
+  if (new TextEncoder().encode(JSON.stringify(book, null, 2)).length > MAX_FILE_BYTES) throw new Error('导入后的笔记库超过 10 MB，请先整理现有内容。')
+  return { book, importedNotes: notes.length, importedWords: added.length }
 }
 
 export function parseNotebook(text) {

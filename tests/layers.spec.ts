@@ -82,7 +82,7 @@ test('legacy backups keep original highlights and can receive and persist new la
   await expect(page.getByRole('status').filter({ hasText: '已保存到本机' })).toBeVisible()
   await page.reload()
   await expect(page.locator('.ink-layered')).toHaveText('legacy')
-  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('marknote.notebook.v1')!).version)).toBe(2)
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('marknote.notebook.v1')!).version)).toBe(3)
 })
 
 test('layer limits reject the whole stroke and repeating a color does not consume a layer', async ({ page }) => {

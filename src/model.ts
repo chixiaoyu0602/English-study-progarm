@@ -2,8 +2,10 @@ import type { JSONContent } from '@tiptap/core'
 import { EMPTY_DOC } from '../shared/schema.js'
 
 export interface Note { id: string; title: string; content: JSONContent; createdAt: number; updatedAt: number }
+export interface WordSource { noteId: string | null; title: string; quote: string; selected: string }
+export interface WordCard { word: string; phonetic: string; meaning: string; addedAt: number; source: WordSource | null }
 export interface Notebook {
-  version: 2; notes: Note[]; activeId: string | null; theme: 'light' | 'dark';
+  version: 3; notes: Note[]; activeId: string | null; vocabulary: WordCard[]; theme: 'light' | 'dark';
   color: string; pen: 'wide' | 'fine'; customColors: string[]; fontSize: number;
 }
 export type Result = { ok: boolean; data?: Notebook | null; error?: string; warning?: string; canceled?: boolean }
@@ -43,7 +45,7 @@ export function initialNotebook(): Notebook {
       p(text('试试看，给你喜欢的这句话涂上一点颜色。')),
     ] },
   }
-  return { version: 2, notes: [welcome], activeId: welcome.id, theme: 'light', color: COLORS[0].value, pen: 'wide', customColors: [], fontSize: 20 }
+  return { version: 3, notes: [welcome], activeId: welcome.id, vocabulary: [], theme: 'light', color: COLORS[0].value, pen: 'wide', customColors: [], fontSize: 20 }
 }
 export function downloadBackup(notebook: Notebook) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(notebook, null, 2)], { type: 'application/json' }))
