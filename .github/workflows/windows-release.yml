@@ -25,8 +25,9 @@ jobs:
       - run: npx install-electron --no
       - run: npx playwright install chromium
       - run: npm test
+      - run: npm run build
       - name: Build portable Windows executable
-        run: npm run dist:win -- -c.win.signAndEditExecutable=true -c.win.signExecutable=false
+        run: node scripts/package-windows.mjs
       - name: Smoke test the packaged Windows desktop application
         run: node scripts/smoke-desktop.mjs
         env:
