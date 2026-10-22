@@ -58,3 +58,20 @@ test('round-trips layers and rejects malformed, excessive or mismatched stacks',
     assert.throws(() => validateNotebook(data))
   }
 })
+
+test('stroke identities round-trip and reject duplicate, conflicting or invalid identities', () => {
+  const data = book()
+  const outer = { color: '#f3cf62', width: 'wide', id: 'outer' }
+  const inner = { ...outer, id: 'inner' }
+  const text = (value, layers) => ({ type: 'text', text: value, marks: [{ type: 'ink', attrs: { ...layers.at(-1), layers } }] })
+  data.notes[0].content.content[0].content = [text('outer ', [outer]), text('inner', [outer, inner])]
+  assert.deepEqual(parseNotebook(JSON.stringify(data)), data)
+  for (const id of ['', ' '.repeat(2), 'x'.repeat(81), 'url(x)', 10]) {
+    data.notes[0].content.content[0].content = [text('x', [{ ...outer, id }])]
+    assert.throws(() => validateNotebook(data))
+  }
+  data.notes[0].content.content[0].content = [text('x', [outer, outer])]
+  assert.throws(() => validateNotebook(data))
+  data.notes[0].content.content[0].content = [text('x', [outer]), text('y', [{ ...outer, color: '#f09a91' }])]
+  assert.throws(() => validateNotebook(data))
+})

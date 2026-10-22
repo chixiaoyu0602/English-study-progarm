@@ -21,7 +21,7 @@ test('pen cursors show width and current color over both plain and highlighted t
   await expect(page.locator('.ink')).toHaveCSS('cursor', 'text')
 })
 
-test('yellow paragraph retains its base under red and blue subregions across saves and backup', async ({ page }) => {
+test('enclosing strokes preserve inner colours across saves and backup; erasing peels visible layers', async ({ page }) => {
   const sentence = 'The hunt for the puma began in a small village.'
   await fresh(page, sentence)
   await select(page, sentence)
@@ -32,11 +32,12 @@ test('yellow paragraph retains its base under red and blue subregions across sav
   const nested = page.locator('.ink-layered')
   await expect(nested).toHaveText('puma began')
   await expect(nested).toHaveAttribute('data-layer-count', '2')
-  expect(JSON.parse((await nested.getAttribute('data-layers'))!)).toEqual([{ color: '#f3cf62', width: 'wide' }, { color: '#f09a91', width: 'wide' }])
+  expect(JSON.parse((await nested.getAttribute('data-layers'))!).map(({ color, width }: { color: string; width: string }) => ({ color, width }))).toEqual([{ color: '#f3cf62', width: 'wide' }, { color: '#f09a91', width: 'wide' }])
   await page.getByRole('button', { name: '晴空蓝', exact: true }).click()
   await select(page, 'puma')
   await page.getByRole('button', { name: '细记号笔', exact: true }).click()
   await expect(page.locator('[data-layer-count="3"]')).toHaveText('puma')
+  await page.getByRole('button', { name: '粗记号笔', exact: true }).click()
   await select(page, 'hunt for the puma began')
   await page.getByRole('button', { name: '草木绿', exact: true }).click()
   await expect(page.locator('[data-layer-count="4"]')).toHaveText('puma')
@@ -52,7 +53,8 @@ test('yellow paragraph retains its base under red and blue subregions across sav
   await expect(body(page)).toHaveText(sentence)
   await select(page, 'puma')
   await page.getByRole('button', { name: '橡皮擦', exact: true }).click()
-  await expect(page.locator('[data-layer-count="3"][data-color="#94c9e9"]')).toHaveText('puma')
+  await expect(page.locator('[data-layer-count="3"]').filter({ hasText: 'puma' })).toContainText('puma')
+  await expect(page.locator('.ink-surface').filter({ hasText: 'puma' })).toHaveAttribute('data-visible-color', '#f09a91')
 })
 
 test('erasing a subregion reveals its base; undo restores the entire layer stack', async ({ page }) => {

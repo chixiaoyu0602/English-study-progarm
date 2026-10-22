@@ -9,7 +9,9 @@ import { wordFromArticle, type WordRequest } from './reading'
 import type { DictionaryEntry } from './dictionary'
 import DictionaryCard from './DictionaryCard'
 import Wordbook from './Wordbook'
+import packageInfo from '../package.json'
 
+const appVersion = packageInfo.version
 const STORAGE_KEY = 'marknote.notebook.v1'
 function dateLabel(time: number) { return new Intl.DateTimeFormat('zh-CN', { month: 'long', day: 'numeric' }).format(time) }
 
@@ -224,7 +226,7 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
         </button>)}
         {!visibleNotes.length && <div className="list-empty">{query ? '没有找到相关笔记' : '你的下一页，等你来写。'}</div>}
       </div>
-      <div className="sidebar-bottom"><span className="offline-dot" /> 本地保存，安心书写 <span>v1.1.0</span></div>
+      <div className="sidebar-bottom"><span className="offline-dot" /> 本地保存，安心书写 <span>v{appVersion}</span></div>
     </aside>}
     <main className="main">
       <header className="topbar">
@@ -268,7 +270,7 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
             <div className="paper-end"><span /> <NotebookPen size={15} /> <span /></div>
           </article>
         </div>
-        <footer className="statusbar">{saveStatus}<div className="tool-hint">{selection ? '选择一支记号笔，为选中文字标注' : tool === 'text' ? '粘贴文字，或选择记号笔开始标注' : tool === 'erase' ? '拖选文字，擦除最上层，保留下层颜色' : `拖选文字，使用${tool === 'wide' ? '粗' : '细'}记号笔标注`}</div><div className="reading-size"><button aria-label="缩小字号" title="缩小字号" disabled={book.fontSize <= 16} onClick={() => setBook(previous => ({ ...previous, fontSize: previous.fontSize - 2 }))}><Minus size={13} /></button><span>{book.fontSize}</span><button aria-label="放大字号" title="放大字号" disabled={book.fontSize >= 28} onClick={() => setBook(previous => ({ ...previous, fontSize: previous.fontSize + 2 }))}><Plus size={13} /></button><span className="status-divider" /><span className="annotation-count">{marks} 处标注</span></div></footer>
+        <footer className="statusbar">{saveStatus}<div className="tool-hint">{selection ? '选择一支记号笔，为选中文字标注' : tool === 'text' ? '粘贴文字，或选择记号笔开始标注' : tool === 'erase' ? '拖选文字，先擦细笔，再擦内层底色' : `拖选文字，使用${tool === 'wide' ? '粗' : '细'}记号笔标注`}</div><div className="reading-size"><button aria-label="缩小字号" title="缩小字号" disabled={book.fontSize <= 16} onClick={() => setBook(previous => ({ ...previous, fontSize: previous.fontSize - 2 }))}><Minus size={13} /></button><span>{book.fontSize}</span><button aria-label="放大字号" title="放大字号" disabled={book.fontSize >= 28} onClick={() => setBook(previous => ({ ...previous, fontSize: previous.fontSize + 2 }))}><Plus size={13} /></button><span className="status-divider" /><span className="annotation-count">{marks} 处标注</span></div></footer>
       </> : <div className="empty-workspace"><div className="empty-icon"><NotebookPen size={36} strokeWidth={1.2} /></div><h1>新的一页，从这里开始</h1><p>写下灵感，粘贴好文，给值得记住的句子添一点颜色。</p><button className="primary-button" onClick={addNote}><Plus size={17} /> 新建第一篇笔记</button></div>}
       </div>
       <div className="library-actions"><button onClick={() => void importAll()} disabled={busy}><ArrowDownToLine size={15} /> 导入备份</button>{view === 'notes' && current && <button className="delete-note" onClick={() => setDeleting(current)} aria-label="删除当前笔记"><Trash2 size={15} /><span>删除笔记</span></button>}</div>
@@ -284,7 +286,7 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
       if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
     }}>
       <button autoFocus className="modal-close icon-button" aria-label="关闭对话框" onClick={() => { setHelp(false); setDeleting(null) }}><X size={19} /></button>
-      {deleting ? <><div className="modal-symbol"><Trash2 size={25} /></div><h2 id="dialog-title">删除这篇笔记？</h2><p>「{deleting.title.trim() || '未命名笔记'}」将被永久删除。建议先导出备份，删除后无法撤销。</p><div className="modal-actions"><button className="secondary-button" onClick={() => setDeleting(null)}>保留笔记</button><button className="danger-button" onClick={deleteNote}>确认删除</button></div></> : <><div className="modal-symbol"><NotebookPen size={27} /></div><h2 id="dialog-title">一点颜色，记住更多</h2><p>拾光笔记 v1.1.0 · 为专注阅读而做</p><div className="help-steps"><div><span>01</span><p><strong>把文字放进来</strong>新建笔记，直接输入或粘贴文本。粘贴时会去除原有格式，让页面保持清爽。</p></div><div><span>02</span><p><strong>给重点一点颜色</strong>选择粗笔或细笔，再拖选文字。可在整段底色上继续标注小区域，最多叠加 8 层；橡皮擦每次只擦掉最上层。</p></div><div><span>03</span><p><strong>安心留下你的记录</strong>文章中右键单词即可查中文释义并加入单词本，自动保留原句。也可选中单词按 Ctrl D。笔记和单词本一起自动保存、导出备份；导入会保留现有内容。</p></div></div><div className="shortcut-list"><span>查词收藏 <kbd>Ctrl D</kbd></span><span>新建笔记 <kbd>Ctrl N</kbd></span><span>撤销 <kbd>Ctrl Z</kbd></span><span>粗笔 <kbd>Ctrl Shift H</kbd></span><span>细笔 <kbd>Ctrl Shift U</kbd></span><span>橡皮擦 <kbd>Ctrl Shift E</kbd></span><span>回到文字 <kbd>Esc</kbd></span></div><p className="help-footnote">完全离线，无账号、无云同步。请定期导出备份。每篇最多 20 万字符，最多 500 篇，总备份不超过 10 MB。</p></>}
+      {deleting ? <><div className="modal-symbol"><Trash2 size={25} /></div><h2 id="dialog-title">删除这篇笔记？</h2><p>「{deleting.title.trim() || '未命名笔记'}」将被永久删除。建议先导出备份，删除后无法撤销。</p><div className="modal-actions"><button className="secondary-button" onClick={() => setDeleting(null)}>保留笔记</button><button className="danger-button" onClick={deleteNote}>确认删除</button></div></> : <><div className="modal-symbol"><NotebookPen size={27} /></div><h2 id="dialog-title">一点颜色，记住更多</h2><p>拾光笔记 v{appVersion} · 为专注阅读而做</p><div className="help-steps"><div><span>01</span><p><strong>把文字放进来</strong>新建笔记，直接输入或粘贴文本。粘贴时会去除原有格式，让页面保持清爽。</p></div><div><span>02</span><p><strong>给重点一点颜色</strong>选择粗笔或细笔，再拖选文字。同色也可嵌套，用深浅和首尾短边界区分内外层。先标小区域再补整段底色也可以，最多叠加 8 层；橡皮擦先擦掉细笔，再逐层擦除内层底色。</p></div><div><span>03</span><p><strong>安心留下你的记录</strong>文章中右键单词即可查中文释义并加入单词本，自动保留原句。也可选中单词按 Ctrl D。笔记和单词本一起自动保存、导出备份；导入会保留现有内容。</p></div></div><div className="shortcut-list"><span>查词收藏 <kbd>Ctrl D</kbd></span><span>新建笔记 <kbd>Ctrl N</kbd></span><span>撤销 <kbd>Ctrl Z</kbd></span><span>粗笔 <kbd>Ctrl Shift H</kbd></span><span>细笔 <kbd>Ctrl Shift U</kbd></span><span>橡皮擦 <kbd>Ctrl Shift E</kbd></span><span>回到文字 <kbd>Esc</kbd></span></div><p className="help-footnote">完全离线，无账号、无云同步。请定期导出备份。每篇最多 20 万字符，最多 500 篇，总备份不超过 10 MB。</p></>}
     </section></div>}
   </div>
 }

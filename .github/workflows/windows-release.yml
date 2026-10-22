@@ -68,4 +68,4 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" release/* --title "拾光笔记 $RELEASE_TAG" --notes "Windows 10/11 x64 免安装版。下载 .exe 后双击运行。新增单词本：文章中右键单词即可查中文释义、音标并一键收藏，自动保留原句和出处。内置约 40 万词条的 ECDICT 离线英汉词典；支持词形与原形释义、搜索和去重，随笔记自动保存和备份。保留彩色粗细笔、多层标注和日夜模式。兼容旧文章，新备份请使用 v1.1.0 或更新版本打开。程序未购买商业代码签名证书。"
+          gh release create "$RELEASE_TAG" release/* --title "拾光笔记 $RELEASE_TAG" --notes "Windows 10/11 x64 免安装版。下载 .exe 后双击运行。同色可以嵌套：用深浅和首尾短边界区分从句与内部成分；先标内部、后补整段底色也能保留层级。去掉嵌套标记上下横线，优化日夜配色，放大工具栏、说明文字和词典释义。保留离线英汉词典、带原句的单词本、逐层擦除、撤销和备份。兼容旧文章和单词本；旧版未记录的同色内层需重新涂一次。程序未购买商业代码签名证书。"

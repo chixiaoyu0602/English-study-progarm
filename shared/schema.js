@@ -7,7 +7,8 @@ export const MAX_INK_LAYERS = 8
 export const MAX_VOCABULARY = 5000
 export const EMPTY_DOC = { type: 'doc', content: [{ type: 'paragraph' }] }
 export const isColor = (value) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
-export const isInkLayer = layer => !!layer && isColor(layer.color) && ['wide', 'fine'].includes(layer.width)
+export const isInkLayer = layer => !!layer && isColor(layer.color) && ['wide', 'fine'].includes(layer.width) &&
+  (layer.id === undefined || (typeof layer.id === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(layer.id)))
 export function inkLayers(attrs) {
   if (Array.isArray(attrs?.layers) && attrs.layers.length) return attrs.layers
   return isInkLayer(attrs) ? [{ color: attrs.color, width: attrs.width }] : []
@@ -18,6 +19,8 @@ function validInkMark(mark) {
   const layers = mark.attrs.layers
   if (layers === undefined || layers === null) return true
   if (!Array.isArray(layers) || !layers.length || layers.length > MAX_INK_LAYERS || !layers.every(isInkLayer)) return false
+  const ids = layers.filter(layer => layer.id !== undefined).map(layer => layer.id)
+  if (new Set(ids).size !== ids.length) return false
   const top = layers[layers.length - 1]
   return top.color === mark.attrs.color && top.width === mark.attrs.width
 }
@@ -26,6 +29,7 @@ function validateDoc(doc) {
   if (!doc || doc.type !== 'doc' || !Array.isArray(doc.content)) return false
   let length = 0
   let nodes = 0
+  const strokes = new Map()
   const walk = (node, depth = 0) => {
     if (!node || ++nodes > 100000 || depth > 3) return false
     if (!['doc', 'paragraph', 'text', 'hardBreak'].includes(node.type)) return false
@@ -37,6 +41,14 @@ function validateDoc(doc) {
     if (node.marks !== undefined) {
       if (node.type !== 'text' || !Array.isArray(node.marks) || node.marks.length > 1) return false
       if (!node.marks.every(validInkMark)) return false
+      for (const mark of node.marks) {
+        for (const layer of inkLayers(mark.attrs)) {
+          if (!layer.id) continue
+          const signature = `${layer.color.toLowerCase()}:${layer.width}`
+          if (strokes.has(layer.id) && strokes.get(layer.id) !== signature) return false
+          strokes.set(layer.id, signature)
+        }
+      }
     }
     if (node.content !== undefined) {
       if (!Array.isArray(node.content)) return false

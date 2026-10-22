@@ -1,0 +1,136 @@
+import { test, expect, type Page } from '@playwright/test'
+import { body, fresh, select } from './helpers'
+
+const clause = "where a woman picking blackberries saw 'a large cat' only five yards away from her"
+const inner = 'only five yards away from her'
+const surface = (page: Page, text: string) => page.locator('.ink-surface').filter({ hasText: new RegExp(`^${text}$`) })
+async function paint(page: Page, text: string, color = '麦芽黄', pen = '粗记号笔') {
+  await page.getByRole('button', { name: color, exact: true }).click()
+  await select(page, text)
+  await page.getByRole('button', { name: pen, exact: true }).click()
+}
+
+test('three same-colour components persist through reload, backup, erase and undo', async ({ page }) => {
+  await fresh(page, clause)
+  await paint(page, clause)
+  await paint(page, inner)
+  await expect(surface(page, inner)).toHaveAttribute('data-depth', '2')
+  await expect(surface(page, inner)).toHaveClass(/ink-start ink-end/)
+  const outerFill = await page.locator('[data-depth="1"]').first().evaluate(el => getComputedStyle(el).backgroundImage)
+  const innerFill = await surface(page, inner).evaluate(el => getComputedStyle(el).backgroundImage)
+  expect(innerFill).not.toBe(outerFill)
+  await paint(page, 'five yards')
+  await expect(surface(page, 'five yards')).toHaveAttribute('data-depth', '3')
+  expect(await surface(page, 'five yards').evaluate(el => getComputedStyle(el).backgroundImage)).not.toBe(innerFill)
+  await expect(page.locator('.ink-start')).toHaveCount(2)
+  await expect(page.locator('.ink-end')).toHaveCount(2)
+  await expect(page.getByRole('status').filter({ hasText: '已保存到本机' })).toBeVisible()
+  const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('marknote.notebook.v1')!))
+  const three = stored.notes[0].content.content[0].content.find((node: { text: string }) => node.text === 'five yards').marks[0].attrs.layers
+  expect(new Set(three.map((layer: { id: string }) => layer.id)).size).toBe(3)
+  await page.reload()
+  await expect(surface(page, 'five yards')).toHaveAttribute('data-depth', '3')
+  const download = page.waitForEvent('download')
+  await page.getByRole('button', { name: '导出备份' }).click()
+  await page.locator('input[type=file]').setInputFiles((await (await download).path())!)
+  await expect(surface(page, 'five yards')).toHaveAttribute('data-depth', '3')
+  await select(page, 'five yards')
+  await page.getByRole('button', { name: '橡皮擦', exact: true }).click()
+  await expect(surface(page, inner)).toHaveAttribute('data-depth', '2')
+  await page.getByRole('button', { name: '撤销', exact: true }).click()
+  await expect(surface(page, 'five yards')).toHaveAttribute('data-depth', '3')
+})
+
+test('adding the enclosing clause after its components preserves their colours and allows same-colour nesting', async ({ page }) => {
+  await fresh(page, clause)
+  await paint(page, 'saw', '珊瑚红')
+  await paint(page, inner)
+  await paint(page, clause)
+  await expect(surface(page, 'saw')).toHaveAttribute('data-visible-color', '#f09a91')
+  await expect(surface(page, 'saw')).toHaveAttribute('data-depth', '2')
+  await expect(surface(page, inner)).toHaveAttribute('data-depth', '2')
+  await select(page, 'saw')
+  await page.getByRole('button', { name: '橡皮擦', exact: true }).click()
+  await expect(page.locator('[data-visible-color="#f09a91"]')).toHaveCount(0)
+  await expect(page.locator('[data-depth="1"]')).toContainText(['where a woman picking blackberries saw'])
+  await expect(body(page)).toHaveText(clause)
+})
+
+test('same-range repetitions are ignored but smaller and adjacent yellow ranges keep their own identities', async ({ page }) => {
+  await fresh(page, clause)
+  await paint(page, clause)
+  await paint(page, clause)
+  await expect(page.locator('.ink')).toHaveAttribute('data-layer-count', '1')
+  await paint(page, 'only five yards')
+  await paint(page, 'only five yards')
+  await expect(surface(page, 'only five yards')).toHaveAttribute('data-depth', '2')
+  await expect(page.locator('[data-layer-count="3"]')).toHaveCount(0)
+  await paint(page, ' away from her')
+  await expect(page.locator('[data-depth="2"]')).toHaveCount(2)
+  await expect(page.locator('.ink-start')).toHaveCount(2)
+  await expect(page.locator('.ink-end')).toHaveCount(2)
+})
+
+test('dark mode has no top/bottom rails and fine strokes do not create spurious component boundaries', async ({ page }) => {
+  await fresh(page, clause)
+  await paint(page, clause)
+  await paint(page, inner)
+  await paint(page, 'five yards', '晴空蓝', '细记号笔')
+  await paint(page, 'saw', '珊瑚红')
+  await page.getByRole('button', { name: '切换到夜间模式' }).click()
+  await expect(page.locator('.ink-framed')).toHaveCount(0)
+  await expect(page.locator('.ink-start')).toHaveCount(2)
+  await expect(page.locator('.ink-end')).toHaveCount(2)
+  const word = surface(page, 'saw')
+  const css = await word.evaluate(el => ({ shadow: getComputedStyle(el).boxShadow, fill: getComputedStyle(el).backgroundImage, before: getComputedStyle(el, '::before').content }))
+  expect(css.fill).toMatch(/^linear-gradient\(rgb\(\d+, \d+, \d+\), rgb\(\d+, \d+, \d+\)\)$/)
+  expect(css.shadow).toContain('2px 0px 0px 0px inset')
+  expect(css.shadow).toContain('-2px 0px 0px 0px inset')
+  expect(css.shadow).not.toMatch(/ 0px -?[1-9]\d*px /)
+  await expect(surface(page, 'five yards')).not.toHaveClass(/ink-start|ink-end/)
+  // Editing inside a component keeps its identity and both real endpoints.
+  await page.keyboard.press('Escape')
+  await select(page, 'five')
+  await page.keyboard.type('ten')
+  await expect(body(page)).toContainText('only ten yards away from her')
+  await expect(page.locator('.ink-start')).toHaveCount(2)
+  await expect(page.locator('.ink-end')).toHaveCount(2)
+})
+
+test('wrapping and resizing do not invent endpoints or lose nested ranges', async ({ page }) => {
+  const longInner = clause.slice('where '.length)
+  await fresh(page, clause)
+  await paint(page, clause)
+  await paint(page, longInner)
+  await page.setViewportSize({ width: 760, height: 900 })
+  await expect(surface(page, longInner)).toHaveAttribute('data-depth', '2')
+  expect(await surface(page, longInner).evaluate(el => el.getClientRects().length)).toBeGreaterThan(1)
+  await expect(page.locator('.ink-start')).toHaveCount(1)
+  await expect(page.locator('.ink-end')).toHaveCount(1)
+  await page.getByRole('button', { name: '放大字号' }).click()
+  await expect(body(page)).toHaveCSS('font-size', '22px')
+  await expect(page.locator('.ink-start')).toHaveCount(1)
+  await expect(page.locator('.ink-end')).toHaveCount(1)
+})
+
+test('controls and dictionary text remain readable and fit a narrow window', async ({ page }) => {
+  await fresh(page)
+  for (const selector of ['.tool-button', '.search input', '.card-title', '.card-preview', '.card-meta', '.statusbar', '.tool-hint', '.library-actions button', '.sidebar-bottom']) {
+    const sizes = await page.locator(selector).evaluateAll(es => es.map(el => parseFloat(getComputedStyle(el).fontSize)))
+    expect(sizes.every(size => size >= 12), selector).toBe(true)
+  }
+  await expect(page.getByRole('button', { name: '粗记号笔', exact: true })).toHaveCSS('font-size', '14px')
+  await page.setViewportSize({ width: 680, height: 760 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBe(680)
+  const toolbar = await page.locator('.toolbar').boundingBox()
+  for (const button of await page.locator('.toolbar button:visible').all()) {
+    const box = (await button.boundingBox())!
+    expect(box.x).toBeGreaterThanOrEqual(toolbar!.x)
+    expect(box.x + box.width).toBeLessThanOrEqual(680)
+  }
+  await page.getByRole('button', { name: '打开单词本' }).click()
+  await page.getByRole('textbox', { name: '搜索单词或中文释义' }).fill('puma')
+  await page.getByRole('textbox', { name: '搜索单词或中文释义' }).press('Enter')
+  await expect(page.locator('.dictionary-meaning')).toHaveCSS('font-size', '16px')
+  await expect(page.getByRole('button', { name: '加入单词本', exact: true })).toBeInViewport()
+})

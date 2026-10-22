@@ -40,6 +40,25 @@ try {
   expect(disk.theme).toBe('dark')
   expect(disk.version).toBe(3)
   expect(disk.notes[0].content.content[0].content[0].marks[0].attrs.layers).toHaveLength(3)
+  // Same-colour nesting must survive real native persistence, not just localStorage.
+  await page.getByRole('button', { name: '麦芽黄', exact: true }).click()
+  await page.getByRole('button', { name: '粗记号笔', exact: true }).click()
+  await page.evaluate(() => {
+    const editor = document.querySelector('.tiptap')
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT)
+    const node = walker.nextNode()
+    const range = document.createRange()
+    range.setStart(node, 0); range.setEnd(node, 'The hunt'.length)
+    getSelection().removeAllRanges(); getSelection().addRange(range)
+  })
+  await expect(page.locator('.tool-hint')).toContainText('选择一支记号笔')
+  await page.getByRole('button', { name: '粗记号笔', exact: true }).click()
+  await expect(page.locator('.ink-surface').filter({ hasText: /^The hunt$/ })).toHaveAttribute('data-depth', '2')
+  await expect(page.getByRole('status').filter({ hasText: '已保存到本机' })).toBeVisible()
+  disk = JSON.parse(await readFile(notebookPath, 'utf8'))
+  const nested = disk.notes[0].content.content[0].content[0].marks[0].attrs.layers
+  expect(nested).toHaveLength(4)
+  expect(new Set(nested.map(layer => layer.id)).size).toBe(4)
   // The packaged dictionary must work with the renderer explicitly offline and CSP enabled.
   await page.getByRole('button', { name: '打开单词本' }).click()
   await page.getByRole('textbox', { name: '搜索单词或中文释义' }).fill('puma')
@@ -76,7 +95,8 @@ try {
   page = await launch()
   await expect(page.getByRole('textbox', { name: '笔记标题' })).toHaveValue('关闭前最后一次编辑')
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-  await expect(page.locator('.ink')).toHaveAttribute('data-layer-count', '3')
+  await expect(page.locator('.ink').filter({ hasText: /^The hunt$/ })).toHaveAttribute('data-layer-count', '4')
+  await expect(page.locator('.ink-surface').filter({ hasText: /^The hunt$/ })).toHaveAttribute('data-depth', '2')
   await expect(page.locator('.wordbook-count')).toHaveText('1')
   await app.close(); app = undefined
   // Corrupt the primary file while stopped. Recovery must preserve it and use a valid backup.
