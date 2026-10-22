@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Editor, JSONContent } from '@tiptap/core'
 import { ArrowDownToLine, ArrowUpFromLine, BookOpen, Check, CircleHelp, Eraser, Highlighter, LoaderCircle, Minus, Moon, NotebookPen, PanelLeftClose, PanelLeftOpen, Plus, Redo2, Search, Sun, Trash2, Type, Underline, Undo2, X } from 'lucide-react'
 import NoteEditor, { type Tool } from './Editor'
@@ -51,6 +51,14 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
   const [analysis, setAnalysis] = useState<{ noteId: string; target: AnalysisTarget } | null>(null)
   const analysisRef = useRef(analysis); analysisRef.current = analysis
   const [editor, setEditor] = useState<Editor | null>(null)
+  const analysisWasOpen = useRef(false)
+  useLayoutEffect(() => {
+    const closed = analysisWasOpen.current && !analysis
+    analysisWasOpen.current = !!analysis
+    // The parent's layout runs after inert has been removed from the article.
+    // Focusing during the dialog's unmount cleanup is too early for the browser.
+    if (closed && editor && !editor.isDestroyed && editor.view.dom.isConnected) editor.view.focus()
+  }, [analysis, editor])
   const [selection, setSelection] = useState(false)
   const [query, setQuery] = useState('')
   const [sidebar, setSidebar] = useState(true)

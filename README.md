@@ -2,13 +2,13 @@
 
 为英语精读准备的离线桌面笔记：粘贴文章，用颜色分析句子结构，将生词连同原句收藏。
 
-**[下载 Windows 免安装版 v1.4.1](https://github.com/chixiaoyu0602/English-study-progarm/releases/download/v1.4.1/MarkNote-1.4.1-Windows-x64.exe)** · [版本和 SHA-256 校验值](https://github.com/chixiaoyu0602/English-study-progarm/releases/tag/v1.4.1) · [自动构建](https://github.com/chixiaoyu0602/English-study-progarm/actions)
+**[下载 Windows 免安装版 v1.4.2](https://github.com/chixiaoyu0602/English-study-progarm/releases/download/v1.4.2/MarkNote-1.4.2-Windows-x64.exe)** · [版本和 SHA-256 校验值](https://github.com/chixiaoyu0602/English-study-progarm/releases/tag/v1.4.2) · [自动构建](https://github.com/chixiaoyu0602/English-study-progarm/actions)
 
 适用于 **Windows 10 / 11，64 位 x64**。下载 `.exe` 后双击运行，无需安装 Node.js、浏览器扩展或注册账号。应用完全离线，没有云同步。当前构建未购买商业代码签名证书，发布者会显示为未知。
 
 ![主文只显示第一层](docs/analysis-main.png)
 
-## v1.4.1：逐句精读与本地发音
+## v1.4.2：逐句精读与本地发音
 
 - **单词保持简洁**：单个英文单词的色块不再打开二级界面；`don't`、`well-known` 也按一个单词处理。短语和从句仍然可以点击分析，即使还没有内部标记。已保存的单词内部标记保留，右键查词继续可用。
 - **一句一个阅读单元**：工具栏可切换「原文／逐句」，默认逐句显示。编号、留白和中性分隔线帮助辨认句子，颜色继续用于语法成分。日夜模式、字号、文字编辑和标注均适配；切换方式会记住。
@@ -114,7 +114,7 @@ npx playwright install chromium
 npm test            # 28 项词典／数据／标记范围测试 + 34 项界面功能测试
 npm run test:speech  # Windows 本地语音：实际合成 IPA／系统读音为 WAV 并校验
 npm run test:desktop # 桌面桥接、磁盘保存、关闭刷新、备份导入导出与损坏恢复
-npm run dist:win     # release/MarkNote-1.4.1-Windows-x64.exe
+npm run dist:win     # release/MarkNote-1.4.2-Windows-x64.exe
 ```
 
 Windows 原生构建可在 `npm run build` 后运行 `node scripts/package-windows.mjs`，嵌入图标和版本信息，同时避免 Windows 命令行的参数解析差异。Linux 交叉构建默认跳过 Windows 资源编辑，不需要 Wine，功能保持一致。

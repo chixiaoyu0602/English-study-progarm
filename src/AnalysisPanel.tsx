@@ -46,7 +46,7 @@ export default function AnalysisPanel(props: Props) {
   const backdropPress = useRef(false)
   const latest = useRef(props); latest.current = props
   const range = analysisRange(source.state.doc, target)
-  useEffect(() => {
+  useLayoutEffect(() => {
     const update = () => { redraw(value => value + 1); window.getSelection()?.removeAllRanges() }
     source.on('transaction', update)
     return () => { source.off('transaction', update) }
@@ -55,14 +55,12 @@ export default function AnalysisPanel(props: Props) {
     if (!range) latest.current.onClose()
   }, [range?.from, range?.to])
   useLayoutEffect(() => {
-    const active = document.activeElement as HTMLElement | null
-    const previous = active && source.view.dom.contains(active) ? active : null
     close.current?.focus()
     const update = () => setSelected(!!selectedSource(text.current))
     document.addEventListener('selectionchange', update)
     // Clear the panel selection before the next browser interaction. A passive
     // cleanup can run after a new article selection and accidentally erase it.
-    return () => { document.removeEventListener('selectionchange', update); window.getSelection()?.removeAllRanges(); if (previous?.isConnected) previous.focus(); else if (!source.isDestroyed) source.view.focus() }
+    return () => { document.removeEventListener('selectionchange', update); window.getSelection()?.removeAllRanges() }
   }, [])
 
   const paint = (nextTool: Tool, color = props.color) => {
