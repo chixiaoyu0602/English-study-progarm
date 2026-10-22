@@ -1,6 +1,6 @@
 import { _electron as electron, expect } from '@playwright/test'
 import { openAnalysis, panel, paintDetail } from '../tests/helpers.ts'
-import { mkdtemp, readFile, writeFile, readdir, rm } from 'node:fs/promises'
+import { mkdtemp, readFile, writeFile, readdir, rm, appendFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -28,9 +28,11 @@ try {
   expect(await page.evaluate(() => typeof window.desktop?.speak)).toBe('function')
   if (process.platform === 'win32') {
     const audio = await app.evaluate(async ({ app }) => {
-      const { pathToFileURL } = await import('node:url')
-      const { join } = await import('node:path')
-      const { speakWord } = await import(pathToFileURL(join(app.getAppPath(), 'electron', 'speech.js')).href)
+      // Inspector evaluation has no dynamic-import callback. Node 24 can
+      // require this already-loaded ESM module through createRequire instead.
+      const { createRequire } = process.getBuiltinModule('module')
+      const { join } = process.getBuiltinModule('path')
+      const { speakWord } = createRequire(join(app.getAppPath(), 'package.json'))('./electron/speech.js')
       return await speakWord({ word: 'cat', phonetic: 'kæt' }, { probe: true })
     })
     expect(audio.ok, JSON.stringify(audio)).toBe(true)
@@ -117,6 +119,9 @@ try {
   disk = JSON.parse(await readFile(notebookPath, 'utf8'))
   expect(disk.notes.find(note => note.id === disk.activeId).title).toBe('恢复后可继续保存')
   console.log('PASS: relaunch restores notes and theme; corrupt-file recovery preserves original')
+} catch (error) {
+  if (process.env.GITHUB_STEP_SUMMARY) await appendFile(process.env.GITHUB_STEP_SUMMARY, `\n### Desktop verification failure\n\n\`\`\`text\n${error.stack || error}\n\`\`\`\n`)
+  throw error
 } finally {
   if (app) await app.close()
   await rm(dataDir, { recursive: true, force: true })
