@@ -1,0 +1,1 @@
+fa384e3fc864a54a7533ef84d3056ae4a6aba3475eba86bc6b553ae125d108c1  MarkNote-1.0.0-Windows-x64.exe
