@@ -1,0 +1,153 @@
+import { test, expect, type Page } from '@playwright/test'
+
+const body = (page: Page) => page.getByRole('textbox', { name: '笔记正文' })
+async function fresh(page: Page, text = 'The hunt for the puma began in a small village.\n这是第二行，用来练习阅读和标注。') {
+  await page.goto('/')
+  await page.getByRole('button', { name: '新建笔记' }).click()
+  await page.getByRole('textbox', { name: '笔记标题' }).fill('English study')
+  await body(page).fill(text)
+}
+async function select(page: Page, text: string) {
+  await page.evaluate(target => {
+    const editor = document.querySelector('.tiptap')!
+    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT)
+    while (walker.nextNode()) {
+      const node = walker.currentNode
+      const start = node.textContent!.indexOf(target)
+      if (start === -1) continue
+      const range = document.createRange()
+      range.setStart(node, start); range.setEnd(node, start + target.length)
+      const selection = window.getSelection()!
+      selection.removeAllRanges(); selection.addRange(range)
+      return
+    }
+    throw new Error(`Text not found: ${target}`)
+  }, text)
+  await expect(page.locator('.tool-hint')).toContainText('选择一支记号笔')
+}
+
+test('paints with both pen widths, overwrites colors, erases, undoes and redoes', async ({ page }) => {
+  await fresh(page)
+  await select(page, 'The hunt')
+  await page.getByRole('button', { name: '粗记号笔', exact: true }).click()
+  await expect(page.locator('.ink-wide')).toContainText('The hunt')
+  await select(page, 'The hunt')
+  await page.getByRole('button', { name: '珊瑚红', exact: true }).click()
+  await expect(page.locator('.ink-wide')).toHaveAttribute('data-color', '#f09a91')
+  await select(page, 'puma')
+  await page.getByRole('button', { name: '细记号笔', exact: true }).click()
+  await expect(page.locator('.ink-fine')).toContainText('puma')
+  await select(page, 'The hunt')
+  await page.getByRole('button', { name: '橡皮擦', exact: true }).click()
+  await expect(page.locator('.ink-wide')).toHaveCount(0)
+  await page.getByRole('button', { name: '撤销', exact: true }).click()
+  await expect(page.locator('.ink-wide')).toHaveCount(1)
+  await page.getByRole('button', { name: '重做', exact: true }).click()
+  await expect(page.locator('.ink-wide')).toHaveCount(0)
+  await expect(body(page)).toContainText('The hunt for the puma')
+})
+
+test('dragging across lines paints in the selected mode', async ({ page }) => {
+  await fresh(page)
+  await page.getByRole('button', { name: '粗记号笔', exact: true }).click()
+  const points = await body(page).evaluate(el => {
+    const first = el.querySelector('p')!.firstChild!
+    const last = el.querySelector('p:last-child')!.firstChild!
+    const start = document.createRange(); start.setStart(first, 0); start.setEnd(first, 1)
+    const end = document.createRange(); end.setStart(last, 6); end.setEnd(last, 7)
+    const a = start.getBoundingClientRect(), b = end.getBoundingClientRect()
+    return { x1: a.left + 1, y1: a.top + a.height / 2, x2: b.right - 1, y2: b.top + b.height / 2 }
+  })
+  await page.mouse.move(points.x1, points.y1)
+  await page.mouse.down()
+  await page.mouse.move(points.x2, points.y2, { steps: 15 })
+  await page.mouse.up()
+  await expect(page.locator('.ink-wide')).toHaveCount(2)
+})
+
+test('custom colors, notes, annotations and night mode survive a reload', async ({ page }) => {
+  await fresh(page)
+  await select(page, 'puma')
+  await page.getByRole('button', { name: '自定义颜色', exact: true }).click()
+  await page.getByRole('textbox', { name: '十六进制颜色' }).fill('#e6a967')
+  await page.getByRole('button', { name: '使用这个颜色' }).click()
+  await expect(page.locator('.ink-wide')).toHaveAttribute('data-color', '#e6a967')
+  await page.getByRole('button', { name: '切换到夜间模式' }).click()
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await expect(page.getByRole('status').filter({ hasText: '已保存到本机' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('textbox', { name: '笔记标题' })).toHaveValue('English study')
+  await expect(page.locator('.ink-wide')).toHaveAttribute('data-color', '#e6a967')
+  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+})
+
+test('pastes plain text without bringing HTML, images or scripts', async ({ page }) => {
+  await fresh(page, '')
+  await body(page).evaluate(el => {
+    const data = new DataTransfer()
+    data.setData('text/plain', 'hello <script>\n第二行')
+    data.setData('text/html', '<img src="x" onerror="alert(1)"><b>BAD</b>')
+    el.dispatchEvent(new ClipboardEvent('paste', { clipboardData: data, bubbles: true, cancelable: true }))
+  })
+  await expect(body(page)).toContainText('hello <script>')
+  await expect(body(page).locator('p')).toHaveCount(2)
+  await expect(body(page).locator('img,script,b')).toHaveCount(0)
+})
+
+test('exports all annotations and merges imported notes; invalid imports preserve data', async ({ page }) => {
+  await fresh(page)
+  await select(page, 'puma')
+  await page.getByRole('button', { name: '细记号笔', exact: true }).click()
+  const downloadPromise = page.waitForEvent('download')
+  await page.getByRole('button', { name: '导出备份' }).click()
+  const download = await downloadPromise
+  const downloaded = await download.path()
+  expect(download.suggestedFilename()).toMatch(/\.marknote$/)
+  await page.locator('input[type=file]').setInputFiles(downloaded!)
+  await expect(page.locator('.note-card')).toHaveCount(4)
+  await expect(page.locator('.ink-fine')).toContainText('puma')
+  await page.locator('input[type=file]').setInputFiles({ name: 'bad.marknote', mimeType: 'application/json', buffer: Buffer.from('{"version": 999}') })
+  await expect(page.getByRole('status').filter({ hasText: '不是有效的拾光笔记备份' })).toBeVisible()
+  await expect(page.locator('.note-card')).toHaveCount(4)
+})
+
+test('searches text, confirms deletion and handles an empty library', async ({ page }) => {
+  await fresh(page)
+  await page.getByRole('textbox', { name: '搜索笔记' }).fill('puma')
+  await expect(page.locator('.note-card')).toHaveCount(1)
+  await page.getByRole('button', { name: '删除当前笔记' }).click()
+  await page.getByRole('button', { name: '保留笔记' }).click()
+  await expect(page.locator('.note-card')).toHaveCount(1)
+  await page.getByRole('button', { name: '删除当前笔记' }).click()
+  await page.getByRole('button', { name: '确认删除' }).click()
+  await expect(page.locator('.note-card')).toHaveCount(0)
+  await page.getByRole('button', { name: '清空搜索' }).click()
+  await page.getByRole('button', { name: '删除当前笔记' }).click()
+  await page.getByRole('button', { name: '确认删除' }).click()
+  await expect(page.getByRole('heading', { name: '新的一页，从这里开始' })).toBeVisible()
+  await page.getByRole('button', { name: '新建第一篇笔记' }).click()
+  await expect(body(page)).toBeVisible()
+})
+
+test('keyboard shortcuts and font size controls work without losing text', async ({ page }) => {
+  await fresh(page)
+  await body(page).click()
+  await page.keyboard.press('Control+Shift+H')
+  await expect(page.getByRole('button', { name: '粗记号笔', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button', { name: '编辑文字', exact: true })).toHaveAttribute('aria-pressed', 'true')
+  await page.getByRole('button', { name: '放大字号' }).click()
+  await expect(body(page)).toHaveCSS('font-size', '22px')
+  await page.keyboard.press('Control+n')
+  await expect(page.getByRole('textbox', { name: '笔记标题' })).toHaveValue('')
+  await expect(page.locator('.note-card')).toHaveCount(3)
+})
+
+test('corrupt storage is preserved and displays a persistent save error', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('marknote.notebook.v1', 'corrupted original'))
+  await page.goto('/')
+  await expect(page.getByRole('alert')).toBeVisible()
+  await page.getByRole('textbox', { name: '笔记标题' }).fill('Do not overwrite')
+  await page.waitForTimeout(350)
+  expect(await page.evaluate(() => localStorage.getItem('marknote.notebook.v1'))).toBe('corrupted original')
+})
