@@ -1,32 +1,8 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect } from '@playwright/test'
 
-const body = (page: Page) => page.getByRole('textbox', { name: '笔记正文' })
-async function fresh(page: Page, text = 'The hunt for the puma began in a small village.\n这是第二行，用来练习阅读和标注。') {
-  await page.goto('/')
-  await page.getByRole('button', { name: '新建笔记' }).click()
-  await page.getByRole('textbox', { name: '笔记标题' }).fill('English study')
-  await body(page).fill(text)
-}
-async function select(page: Page, text: string) {
-  await page.evaluate(target => {
-    const editor = document.querySelector('.tiptap')!
-    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT)
-    while (walker.nextNode()) {
-      const node = walker.currentNode
-      const start = node.textContent!.indexOf(target)
-      if (start === -1) continue
-      const range = document.createRange()
-      range.setStart(node, start); range.setEnd(node, start + target.length)
-      const selection = window.getSelection()!
-      selection.removeAllRanges(); selection.addRange(range)
-      return
-    }
-    throw new Error(`Text not found: ${target}`)
-  }, text)
-  await expect(page.locator('.tool-hint')).toContainText('选择一支记号笔')
-}
+import { body, fresh, select } from './helpers'
 
-test('paints with both pen widths, overwrites colors, erases, undoes and redoes', async ({ page }) => {
+test('paints with both pen widths, layers colors, erases one layer, undoes and redoes', async ({ page }) => {
   await fresh(page)
   await select(page, 'The hunt')
   await page.getByRole('button', { name: '粗记号笔', exact: true }).click()
@@ -39,11 +15,13 @@ test('paints with both pen widths, overwrites colors, erases, undoes and redoes'
   await expect(page.locator('.ink-fine')).toContainText('puma')
   await select(page, 'The hunt')
   await page.getByRole('button', { name: '橡皮擦', exact: true }).click()
-  await expect(page.locator('.ink-wide')).toHaveCount(0)
+  await expect(page.locator('.ink-wide')).toHaveAttribute('data-color', '#f3cf62')
+  await expect(page.locator('.ink-wide')).toHaveAttribute('data-layer-count', '1')
   await page.getByRole('button', { name: '撤销', exact: true }).click()
-  await expect(page.locator('.ink-wide')).toHaveCount(1)
+  await expect(page.locator('.ink-wide')).toHaveAttribute('data-color', '#f09a91')
+  await expect(page.locator('.ink-wide')).toHaveAttribute('data-layer-count', '2')
   await page.getByRole('button', { name: '重做', exact: true }).click()
-  await expect(page.locator('.ink-wide')).toHaveCount(0)
+  await expect(page.locator('.ink-wide')).toHaveAttribute('data-color', '#f3cf62')
   await expect(body(page)).toContainText('The hunt for the puma')
 })
 
@@ -63,6 +41,13 @@ test('dragging across lines paints in the selected mode', async ({ page }) => {
   await page.mouse.move(points.x2, points.y2, { steps: 15 })
   await page.mouse.up()
   await expect(page.locator('.ink-wide')).toHaveCount(2)
+  await page.getByRole('button', { name: '珊瑚红', exact: true }).click()
+  await page.mouse.move(points.x1, points.y1)
+  await page.mouse.down()
+  await page.mouse.move(points.x2, points.y2, { steps: 15 })
+  await page.mouse.up()
+  await expect(page.locator('.ink-layered')).toHaveCount(2)
+  await expect(page.locator('.ink-layered').first()).toHaveAttribute('data-layer-count', '2')
 })
 
 test('custom colors, notes, annotations and night mode survive a reload', async ({ page }) => {

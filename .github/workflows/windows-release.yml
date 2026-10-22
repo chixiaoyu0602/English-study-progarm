@@ -68,4 +68,4 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          gh release create "$RELEASE_TAG" release/* --title "拾光笔记 $RELEASE_TAG" --notes "Windows 10/11 x64 免安装版。下载 .exe 后双击运行。支持粗细记号笔、预设和自定义颜色、日夜模式、自动保存与笔记备份。程序暂未购买商业代码签名证书。"
+          gh release create "$RELEASE_TAG" release/* --title "拾光笔记 $RELEASE_TAG" --notes "Windows 10/11 x64 免安装版。下载 .exe 后双击运行。彩色粗细笔光标、最多 8 层嵌套标注、逐层擦除、预设和自定义颜色、日夜模式、自动保存与笔记备份。兼容 v1.0.0 笔记，新备份请使用新版打开。程序暂未购买商业代码签名证书。"

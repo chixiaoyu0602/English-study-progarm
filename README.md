@@ -2,18 +2,27 @@
 
 一张安静的纸，几支顺手的记号笔。为阅读和英语学习做的简洁桌面记事本。
 
-**[下载 Windows 免安装版 v1.0.0](https://github.com/chixiaoyu0602/English-study-progarm/raw/refs/heads/main/downloads/MarkNote-1.0.0-Windows-x64.exe)** · [下载目录和 SHA-256 校验值](downloads/) · [自动构建](https://github.com/chixiaoyu0602/English-study-progarm/actions)
+**[下载 Windows 免安装版 v1.0.1](https://github.com/chixiaoyu0602/English-study-progarm/releases/download/v1.0.1/MarkNote-1.0.1-Windows-x64.exe)** · [版本和 SHA-256 校验值](https://github.com/chixiaoyu0602/English-study-progarm/releases/tag/v1.0.1) · [自动构建](https://github.com/chixiaoyu0602/English-study-progarm/actions)
 
 适用于 **Windows 10 / 11，64 位 x64**。下载 `.exe` 后双击运行，无需安装 Node.js、浏览器扩展或注册账号。应用完全离线；v1.0 没有云同步。当前构建未购买商业代码签名证书，发布者会显示为未知。
 
-![拾光笔记 · 日间模式](docs/light.png)
+![拾光笔记 · 多层标注](docs/layers.png)
+
+## v1.0.1 更新
+
+- 粗笔使用宽笔头光标，细笔使用尖笔头光标，笔头显示当前颜色；橡皮擦也有独立图标。
+- 支持同一段文字叠加最多 8 层标注。例如整段涂黄，再给其中几个词涂红，黄色边框仍然保留，红色不会与底层混成另一种颜色。粗细笔可组合，细笔颜色分行显示。
+- 橡皮擦每次去掉选区最上层的标注，露出下层颜色；撤销、重做和备份均保留完整的层次。
+- 自动读取 v1.0.0 的笔记和备份，笔记 ID、文字和已有颜色保持不变。新备份格式为 2，包含全部标注层，请使用 v1.0.1 或更高版本打开。
+
+![粗笔、细笔和橡皮擦光标示例](docs/cursors.svg)
 
 ## 怎么用
 
 1. 点「新建笔记」，填写标题，把文章复制粘贴到正文中，也可以直接输入文字。
 2. 点「粗笔」添加文字底色，点「细笔」添加文字下方的窄色带。选好颜色后，按住鼠标拖选文字即可涂抹标注；也支持先选中文字再点记号笔或颜色。
 3. 内置黄、红、绿、蓝、紫五种颜色。点颜色旁的 `+` 可以选颜色或输入 `#RRGGBB`，会保留最近 8 种自定义颜色。
-4. 用橡皮擦拖选文字，清除该范围的标注。撤销、重做均支持键盘操作。
+4. 用橡皮擦拖选文字，每次擦除最上层；重复擦除可清空该范围的标注。撤销、重做均支持键盘操作。
 5. 右上角的太阳／月亮切换日间和夜间模式；底部的 `− / +` 调节阅读字号。
 
 **笔记会自动保存到本机。**「导出备份」会保存所有笔记、标注和偏好为 `.marknote` 文件。点击「导入备份」恢复内容，导入会新增笔记，保留现有笔记；同一文件反复导入会产生副本。建议定期导出备份。
@@ -23,7 +32,7 @@
 <details>
 <summary>夜间模式</summary>
 
-![拾光笔记 · 夜间模式](docs/dark.png)
+![拾光笔记 · 夜间多层标注](docs/layers-dark.png)
 
 </details>
 
@@ -61,12 +70,12 @@ npm run desktop     # 构建并打开真正的桌面应用；数据写入磁盘
 
 ```sh
 npx playwright install chromium
-npm test            # 5 项数据校验测试 + 8 项界面功能测试
+npm test            # 7 项数据校验测试 + 13 项界面功能测试
 npm run test:desktop # 桌面桥接、磁盘保存、关闭刷新、备份导入导出与损坏恢复
-npm run dist:win     # release/MarkNote-1.0.0-Windows-x64.exe
+npm run dist:win     # release/MarkNote-1.0.1-Windows-x64.exe
 ```
 
-Windows 原生构建还可添加 `-- -c.win.signAndEditExecutable=true -c.win.signExecutable=false`，为应用嵌入图标和版本信息。Linux 交叉构建默认跳过 Windows 资源编辑，不需要 Wine，功能保持一致。
+Windows 原生构建可在 `npm run build` 后运行 `node scripts/package-windows.mjs`，嵌入图标和版本信息，同时避免 Windows 命令行的参数解析差异。Linux 交叉构建默认跳过 Windows 资源编辑，不需要 Wine，功能保持一致。
 
 包内仅包含编译产物及桌面进程所需文件。React、Tiptap 等前端库已编译进界面资源，因此列于 `devDependencies`，无需随应用再次分发完整的 `node_modules`。
 
@@ -89,6 +98,6 @@ Electron 下载遵循系统代理和 CA 配置，并使用官方 checksum 校验
 
 推送 `v*` 标签还会在测试全部通过后自动创建 GitHub Release，并上传 exe 和 `SHA256SUMS.txt`。工作流使用 GitHub 自带的临时令牌，不需要个人访问令牌。源码仓库中的 `downloads/` 也保留 v1.0.0 可执行文件，供直接下载；后续版本可通过 Releases 分发。
 
-本次交付已通过 5 项数据校验测试、8 项界面测试、Linux 打包应用桌面验证，以及 [Windows 原生打包和打包后桌面验证](https://github.com/chixiaoyu0602/English-study-progarm/actions/runs/39752290827)。桌面验证涵盖实际磁盘写入、备份导入导出、关闭前最后一次编辑保存、重新启动和损坏文件恢复。`downloads/` 中的免安装包已从 GitHub 下载回验，SHA-256 与本地交付文件一致。
+v1.0.1 本地已通过 7 项数据校验测试、13 项界面测试和 Electron 桌面验证，覆盖彩色笔形光标、多层嵌套、交叠选区、跨行拖选、逐层擦除、撤销、备份和旧数据迁移。Windows 流水线还会验证打包后的程序能将三层标注写入磁盘并在重新启动后恢复，以及关闭前保存和损坏文件恢复。对应结果可在上方的自动构建页面查看。
 
 MIT License。

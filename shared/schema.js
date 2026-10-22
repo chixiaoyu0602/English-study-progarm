@@ -1,8 +1,23 @@
 export const MAX_FILE_BYTES = 10 * 1024 * 1024
 export const MAX_NOTES = 500
 export const MAX_TEXT = 200000
+export const MAX_INK_LAYERS = 8
 export const EMPTY_DOC = { type: 'doc', content: [{ type: 'paragraph' }] }
 export const isColor = (value) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
+export const isInkLayer = layer => !!layer && isColor(layer.color) && ['wide', 'fine'].includes(layer.width)
+export function inkLayers(attrs) {
+  if (Array.isArray(attrs?.layers) && attrs.layers.length) return attrs.layers
+  return isInkLayer(attrs) ? [{ color: attrs.color, width: attrs.width }] : []
+}
+
+function validInkMark(mark) {
+  if (mark?.type !== 'ink' || !isInkLayer(mark.attrs)) return false
+  const layers = mark.attrs.layers
+  if (layers === undefined || layers === null) return true
+  if (!Array.isArray(layers) || !layers.length || layers.length > MAX_INK_LAYERS || !layers.every(isInkLayer)) return false
+  const top = layers[layers.length - 1]
+  return top.color === mark.attrs.color && top.width === mark.attrs.width
+}
 
 function validateDoc(doc) {
   if (!doc || doc.type !== 'doc' || !Array.isArray(doc.content)) return false
@@ -18,7 +33,7 @@ function validateDoc(doc) {
     } else if (node.text !== undefined) return false
     if (node.marks !== undefined) {
       if (node.type !== 'text' || !Array.isArray(node.marks) || node.marks.length > 1) return false
-      if (!node.marks.every(mark => mark.type === 'ink' && isColor(mark.attrs?.color) && ['wide', 'fine'].includes(mark.attrs?.width))) return false
+      if (!node.marks.every(validInkMark)) return false
     }
     if (node.content !== undefined) {
       if (!Array.isArray(node.content)) return false
@@ -31,7 +46,7 @@ function validateDoc(doc) {
 }
 
 export function validateNotebook(value) {
-  if (!value || value.version !== 1 || !Array.isArray(value.notes) || value.notes.length > MAX_NOTES) throw new Error('不是有效的拾光笔记备份，或笔记数量超过 500 篇。')
+  if (!value || ![1, 2].includes(value.version) || !Array.isArray(value.notes) || value.notes.length > MAX_NOTES) throw new Error('不是有效的拾光笔记备份，或笔记数量超过 500 篇。')
   const ids = new Set()
   for (const note of value.notes) {
     if (!note || typeof note.id !== 'string' || !note.id || ids.has(note.id) || note.id.length > 100 ||
@@ -44,7 +59,8 @@ export function validateNotebook(value) {
     !Array.isArray(value.customColors) || value.customColors.length > 8 || !value.customColors.every(isColor) ||
     !Number.isInteger(value.fontSize) || value.fontSize < 16 || value.fontSize > 28 ||
     !(value.activeId === null || ids.has(value.activeId))) throw new Error('备份中的偏好设置无效。')
-  return value
+  // Upgrade only the envelope. An old app rejects format 2 instead of discarding layers.
+  return { ...value, version: 2 }
 }
 
 export function parseNotebook(text) {

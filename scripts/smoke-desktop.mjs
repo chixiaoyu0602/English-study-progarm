@@ -25,11 +25,20 @@ try {
   expect(await page.evaluate(() => typeof window.desktop?.save)).toBe('function')
   await page.getByRole('textbox', { name: '笔记标题' }).fill('桌面保存测试')
   await page.getByRole('textbox', { name: '笔记正文' }).fill('The hunt for the puma. 你好，拾光。')
+  for (const [color, pen] of [['麦芽黄', '粗记号笔'], ['珊瑚红', '粗记号笔'], ['晴空蓝', '细记号笔']]) {
+    await page.getByRole('button', { name: color, exact: true }).click()
+    await page.getByRole('textbox', { name: '笔记正文' }).press('Control+a')
+    await expect(page.locator('.tool-hint')).toContainText('选择一支记号笔')
+    await page.getByRole('button', { name: pen, exact: true }).click()
+  }
+  await expect(page.locator('.ink')).toHaveAttribute('data-layer-count', '3')
   await page.getByRole('button', { name: '切换到夜间模式' }).click()
   await expect(page.getByRole('status').filter({ hasText: '已保存到本机' })).toBeVisible()
   let disk = JSON.parse(await readFile(notebookPath, 'utf8'))
   expect(disk.notes[0].title).toBe('桌面保存测试')
   expect(disk.theme).toBe('dark')
+  expect(disk.version).toBe(2)
+  expect(disk.notes[0].content.content[0].content[0].marks[0].attrs.layers).toHaveLength(3)
   // Exercise actual native-dialog IPC without requiring a person to click an OS dialog.
   await app.evaluate(({ dialog }, file) => {
     dialog.showSaveDialog = async () => ({ canceled: false, filePath: file })
@@ -52,6 +61,7 @@ try {
   page = await launch()
   await expect(page.getByRole('textbox', { name: '笔记标题' })).toHaveValue('关闭前最后一次编辑')
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+  await expect(page.locator('.ink')).toHaveAttribute('data-layer-count', '3')
   await app.close(); app = undefined
   // Corrupt the primary file while stopped. Recovery must preserve it and use a valid backup.
   await writeFile(notebookPath, 'corrupted-primary-for-test')

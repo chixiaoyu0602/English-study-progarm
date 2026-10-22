@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor, JSONContent } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { Ink } from './Ink'
+import { Ink, paintSelection } from './Ink'
+import { toolCursor } from './cursor'
 import type { Note } from './model'
 import { MAX_TEXT } from '../shared/schema.js'
 
@@ -10,7 +11,7 @@ export type Tool = 'text' | 'wide' | 'fine' | 'erase'
 interface Props {
   note: Note; tool: Tool; color: string; fontSize: number;
   onChange: (content: JSONContent) => void; onReady: (editor: Editor | null) => void;
-  onSelection: (selected: boolean) => void; onLimit: () => void;
+  onSelection: (selected: boolean) => void; onLimit: () => void; onLayerLimit: () => void;
 }
 export default function NoteEditor(props: Props) {
   const current = useRef(props)
@@ -50,16 +51,10 @@ export default function NoteEditor(props: Props) {
 
   const apply = () => {
     if (!editor || editor.state.selection.empty || current.current.tool === 'text') return
-    const { from, to } = editor.state.selection
-    const chain = editor.chain().focus()
-    if (current.current.tool === 'erase') chain.unsetMark('ink')
-    else chain.setMark('ink', { color: current.current.color, width: current.current.tool })
-    chain.setTextSelection(to).unsetMark('ink').run()
+    if (!paintSelection(editor, current.current.tool, current.current.color)) { current.current.onLayerLimit(); return }
     current.current.onSelection(false)
-    // Keep IME text entry available in every mode; only nonempty selections are painted.
-    if (from === to) return
   }
-  return <div className={`editor-body tool-${props.tool}`} style={{ '--reading-size': `${props.fontSize}px`, '--active-ink': props.color } as React.CSSProperties}
+  return <div className={`editor-body tool-${props.tool}`} style={{ '--reading-size': `${props.fontSize}px`, '--active-ink': props.color, '--tool-cursor': toolCursor(props.tool, props.color) } as React.CSSProperties}
     onPointerUp={() => requestAnimationFrame(apply)}
     onKeyUp={event => { if (event.key === 'Shift' || event.shiftKey) apply() }}>
     <EditorContent editor={editor} />

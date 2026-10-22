@@ -1,5 +1,9 @@
 # Windows 下载
 
+**[下载最新版 v1.0.1](https://github.com/chixiaoyu0602/English-study-progarm/releases/download/v1.0.1/MarkNote-1.0.1-Windows-x64.exe)** · [新版校验值与更新说明](https://github.com/chixiaoyu0602/English-study-progarm/releases/tag/v1.0.1)
+
+新版包含彩色笔形光标、多层嵌套标注和逐层擦除。下面保留的是 v1.0.0 旧版存档。
+
 下载 [MarkNote-1.0.0-Windows-x64.exe](https://github.com/chixiaoyu0602/English-study-progarm/raw/refs/heads/main/downloads/MarkNote-1.0.0-Windows-x64.exe)，双击运行。适用于 Windows 10 / 11 x64，无需安装。
 
 [SHA256SUMS.txt](SHA256SUMS.txt) 包含本目录 exe 的校验值。在 Windows PowerShell 中运行：

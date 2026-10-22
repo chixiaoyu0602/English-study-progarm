@@ -1,6 +1,6 @@
 {
   "name": "marknote",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "description": "拾光笔记 · 简洁的文本标注记事本",
   "author": "chixiaoyu0602",
@@ -38,16 +38,36 @@
     "appId": "com.chixiaoyu.marknote",
     "productName": "MarkNote",
     "artifactName": "MarkNote-${version}-${arch}.${ext}",
-    "directories": { "output": "release" },
-    "files": ["dist/**/*", "electron/**/*", "shared/**/*", "build/icon.png", "package.json"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "electron/**/*",
+      "shared/**/*",
+      "build/icon.png",
+      "package.json"
+    ],
     "npmRebuild": false,
     "asar": true,
     "win": {
-      "target": [{ "target": "portable", "arch": ["x64"] }],
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
       "icon": "build/icon.ico",
       "signAndEditExecutable": false
     },
-    "portable": { "artifactName": "MarkNote-${version}-Windows-x64.exe" },
-    "linux": { "category": "Utility", "icon": "build/icon.png" }
+    "portable": {
+      "artifactName": "MarkNote-${version}-Windows-x64.exe"
+    },
+    "linux": {
+      "category": "Utility",
+      "icon": "build/icon.png"
+    }
   }
 }
