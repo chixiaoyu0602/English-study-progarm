@@ -2,7 +2,8 @@ import { useEffect, useRef } from 'react'
 import { EditorContent, useEditor } from '@tiptap/react'
 import type { Editor, JSONContent } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { Ink, paintSelection } from './Ink'
+import { Ink, paintSelection, analysisAt } from './Ink'
+import type { AnalysisTarget } from './ink-ranges'
 import { toolCursor } from './cursor'
 import type { Note } from './model'
 import { MAX_TEXT } from '../shared/schema.js'
@@ -14,9 +15,11 @@ interface Props {
   onChange: (content: JSONContent) => void; onReady: (editor: Editor | null) => void;
   onSelection: (selected: boolean) => void; onLimit: () => void; onLayerLimit: () => void;
   onLookup: (request: WordRequest) => void;
+  onOpenAnalysis: (target: AnalysisTarget) => void;
 }
 export default function NoteEditor(props: Props) {
   const current = useRef(props)
+  const pointer = useRef<{ x: number; y: number } | null>(null)
   current.current = props
   const editor = useEditor({
     extensions: [StarterKit.configure({
@@ -57,7 +60,35 @@ export default function NoteEditor(props: Props) {
     current.current.onSelection(false)
   }
   return <div className={`editor-body tool-${props.tool}`} style={{ '--reading-size': `${props.fontSize}px`, '--active-ink': props.color, '--tool-cursor': toolCursor(props.tool, props.color) } as React.CSSProperties}
-    onPointerUp={event => { if (event.button === 0) requestAnimationFrame(apply) }}
+    onPointerDown={event => { if (event.button === 0) pointer.current = { x: event.clientX, y: event.clientY } }}
+    onPointerUp={event => {
+      if (event.button !== 0 || !editor) return
+      const target = (event.target as HTMLElement).closest<HTMLElement>('[data-analysis-id]')
+      const moved = !pointer.current || Math.hypot(event.clientX - pointer.current.x, event.clientY - pointer.current.y) > 4
+      const coords = { left: event.clientX, top: event.clientY }
+      const extend = event.shiftKey
+      pointer.current = null
+      requestAnimationFrame(() => {
+        if (!moved && !extend && target) {
+          const position = editor.view.posAtCoords(coords)
+          const range = position && analysisAt(editor.state.doc, position.pos, target.dataset.analysisId)
+          if (range) {
+            editor.commands.setTextSelection(position!.pos)
+            current.current.onOpenAnalysis({ id: range.id, from: range.from })
+            return
+          }
+        }
+        if (!editor.state.selection.empty) apply()
+      })
+    }}
+    onKeyDownCapture={event => {
+      const target = event.target as HTMLElement
+      if (event.shiftKey || event.ctrlKey || event.metaKey || event.altKey || !['Enter', ' '].includes(event.key) || !target.matches('[data-analysis-id][role="button"]')) return
+      event.preventDefault()
+      event.stopPropagation()
+      const range = analysisAt(editor!.state.doc, editor!.view.posAtDOM(target, 0), target.dataset.analysisId)
+      if (range) current.current.onOpenAnalysis({ id: range.id, from: range.from })
+    }}
     onContextMenu={event => {
       event.preventDefault()
       if (!editor) return

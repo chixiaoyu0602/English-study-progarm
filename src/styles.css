@@ -111,9 +111,8 @@ input[type="color"] { width: 42px; height: 37px; background: transparent; paddin
 .editor-body .tiptap, .editor-body .tiptap * { cursor: var(--tool-cursor, text); }
 .ink-surface { padding: .08em 0; background-image: var(--ink-light); -webkit-box-decoration-break: slice; box-decoration-break: slice; }
 :root[data-theme="dark"] .ink-surface { background-image: var(--ink-dark); }
-.ink-start { border-top-left-radius: 5px; border-bottom-left-radius: 5px; box-shadow: inset 2px 0 color-mix(in srgb, var(--ink-edge) 85%, var(--paper)); }
-.ink-end { border-top-right-radius: 5px; border-bottom-right-radius: 5px; box-shadow: inset -2px 0 color-mix(in srgb, var(--ink-edge) 85%, var(--paper)); }
-.ink-start.ink-end { border-radius: 5px; box-shadow: inset 2px 0 color-mix(in srgb, var(--ink-edge) 85%, var(--paper)), inset -2px 0 color-mix(in srgb, var(--ink-edge) 85%, var(--paper)); }
+.tool-text .ink-surface[data-analysis-id] { cursor: pointer; }
+.ink-surface[role="button"]:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 3px; }
 .tool-wide ::selection, .tool-fine ::selection { background: color-mix(in srgb, var(--active-ink) 50%, transparent); }
 .paper-end { display: flex; align-items: center; justify-content: center; gap: 12px; color: var(--muted); opacity: .5; margin: 36px auto 0; }
 .paper-end span { height: 1px; width: 27px; background: var(--border); }
@@ -214,6 +213,26 @@ input[type="color"] { width: 42px; height: 37px; background: transparent; paddin
 .word-source button { display: flex; align-items: center; gap: 5px; min-height: 36px; font-size: 12px; color: var(--accent); flex-shrink: 0; }
 .source-removed { font-size: 12px; opacity: 1; }
 .wordbook-footnote { font-size: 12px; text-align: center; line-height: 1.8; color: var(--muted); margin: 26px 0 0; }
+.analysis-backdrop { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; padding: 28px; background: #13181170; backdrop-filter: blur(3px); }
+.analysis-panel { width: min(720px, 100%); max-height: calc(100dvh - 56px); display: flex; flex-direction: column; color: var(--text); background: var(--paper); border: 1px solid var(--selected-border); border-radius: 16px; box-shadow: 0 24px 90px #00000030; overflow: hidden; }
+.analysis-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 24px 26px 19px; }
+.analysis-header > div { display: flex; align-items: center; gap: 12px; }
+.analysis-header h2 { font-size: 21px; font-weight: 600; margin: 0; }
+.analysis-level { color: var(--accent); background: var(--accent-soft); font-size: 12px; padding: 5px 9px; border-radius: 5px; }
+.analysis-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 14px; padding: 0 26px 19px; border-bottom: 1px solid var(--border); }
+.analysis-toolbar .undo-group { margin-left: auto; }
+.analysis-toolbar .palette { flex-basis: 100%; padding: 3px 4px; }
+.analysis-custom { position: relative; overflow: hidden; }
+.analysis-custom input[type="color"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; }
+.analysis-text { font: var(--reading-size)/1.95 "Segoe UI", "Microsoft YaHei", sans-serif; letter-spacing: .2px; padding: 27px 30px 30px; overflow-y: auto; min-height: 120px; white-space: pre-wrap; overflow-wrap: anywhere; outline: none; }
+.analysis-text, .analysis-text * { cursor: var(--tool-cursor, text); }
+.analysis-text p { margin: 0 0 .8em; }
+.analysis-text p:last-child { margin-bottom: 0; }
+.analysis-text:focus-visible { box-shadow: inset 3px 0 var(--selected-border); }
+.analysis-footer { display: flex; align-items: flex-start; gap: 10px; flex-direction: column; flex-shrink: 0; padding: 16px 26px 20px; border-top: 1px solid var(--border); color: var(--muted); font-size: 12px; line-height: 1.6; }
+.analysis-footer > span:last-child { display: flex; align-items: center; gap: 6px; color: var(--secondary); }
+.analysis-footer > span.analysis-save-error { color: #bd6b60; }
+@media (max-height: 600px) { .analysis-header { padding-top: 16px; padding-bottom: 12px; } .analysis-toolbar { padding-bottom: 12px; } .analysis-footer { padding-top: 10px; padding-bottom: 12px; } .analysis-text { min-height: 60px; padding-top: 16px; padding-bottom: 16px; } }
 @media (max-width: 1000px) { .wordbook-page { padding: 30px 25px; } .dictionary-card { right: 19px; } .lookup-button { padding-left: 12px; } .lookup-button span { display: none; } }
 @keyframes spin { to { transform: rotate(360deg); } }
 ::-webkit-scrollbar { width: 7px; height: 7px; }

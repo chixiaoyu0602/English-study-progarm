@@ -1,4 +1,5 @@
 import { _electron as electron, expect } from '@playwright/test'
+import { openAnalysis, panel, paintDetail } from '../tests/helpers.ts'
 import { mkdtemp, readFile, writeFile, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -26,39 +27,27 @@ try {
   expect(await page.evaluate(() => typeof window.desktop?.save)).toBe('function')
   await page.getByRole('textbox', { name: '笔记标题' }).fill('桌面保存测试')
   await page.getByRole('textbox', { name: '笔记正文' }).fill('The hunt for the puma. 你好，拾光。')
-  for (const [color, pen] of [['麦芽黄', '粗记号笔'], ['珊瑚红', '粗记号笔'], ['晴空蓝', '细记号笔']]) {
-    await page.getByRole('button', { name: color, exact: true }).click()
-    await page.getByRole('textbox', { name: '笔记正文' }).press('Control+a')
-    await expect(page.locator('.tool-hint')).toContainText('选择一支记号笔')
-    await page.getByRole('button', { name: pen, exact: true }).click()
-  }
-  await expect(page.locator('.ink')).toHaveAttribute('data-layer-count', '3')
+  await page.getByRole('textbox', { name: '笔记正文' }).press('Control+a')
+  await expect(page.locator('.tool-hint')).toContainText('选择一支记号笔')
+  await page.getByRole('button', { name: '粗记号笔', exact: true }).click()
+  await expect(page.locator('.ink')).toHaveAttribute('data-layer-count', '1')
   await page.getByRole('button', { name: '切换到夜间模式' }).click()
-  await expect(page.getByRole('status').filter({ hasText: '已保存到本机' })).toBeVisible()
+  await openAnalysis(page)
+  await expect(panel(page).locator('[data-detail-ink]')).toHaveCount(0)
+  await paintDetail(page, 'The hunt')
+  await paintDetail(page, 'puma', '晴空蓝', '细记号笔')
+  await expect(panel(page).getByRole('status')).toContainText('内部标记已保存')
   let disk = JSON.parse(await readFile(notebookPath, 'utf8'))
   expect(disk.notes[0].title).toBe('桌面保存测试')
   expect(disk.theme).toBe('dark')
-  expect(disk.version).toBe(3)
-  expect(disk.notes[0].content.content[0].content[0].marks[0].attrs.layers).toHaveLength(3)
-  // Same-colour nesting must survive real native persistence, not just localStorage.
-  await page.getByRole('button', { name: '麦芽黄', exact: true }).click()
-  await page.getByRole('button', { name: '粗记号笔', exact: true }).click()
-  await page.evaluate(() => {
-    const editor = document.querySelector('.tiptap')
-    const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT)
-    const node = walker.nextNode()
-    const range = document.createRange()
-    range.setStart(node, 0); range.setEnd(node, 'The hunt'.length)
-    getSelection().removeAllRanges(); getSelection().addRange(range)
-  })
-  await expect(page.locator('.tool-hint')).toContainText('选择一支记号笔')
-  await page.getByRole('button', { name: '粗记号笔', exact: true }).click()
-  await expect(page.locator('.ink-surface').filter({ hasText: /^The hunt$/ })).toHaveAttribute('data-depth', '2')
-  await expect(page.getByRole('status').filter({ hasText: '已保存到本机' })).toBeVisible()
-  disk = JSON.parse(await readFile(notebookPath, 'utf8'))
+  expect(disk.version).toBe(4)
   const nested = disk.notes[0].content.content[0].content[0].marks[0].attrs.layers
-  expect(nested).toHaveLength(4)
-  expect(new Set(nested.map(layer => layer.id)).size).toBe(4)
+  expect(nested).toHaveLength(2)
+  expect(nested[1].parent).toBe(nested[0].id)
+  expect(nested[0].color).toBe('#f3cf62')
+  expect(nested[1].color).toBe('#f09a91')
+  await page.getByRole('button', { name: '关闭片段分析' }).click()
+  expect(await page.locator('.tiptap [data-visible-color]').evaluateAll(es => es.every(el => el.dataset.visibleColor === '#f3cf62'))).toBe(true)
   // The packaged dictionary must work with the renderer explicitly offline and CSP enabled.
   await page.getByRole('button', { name: '打开单词本' }).click()
   await page.getByRole('textbox', { name: '搜索单词或中文释义' }).fill('puma')
@@ -85,6 +74,8 @@ try {
   await expect(page.locator('.note-card')).toHaveCount(2)
   // Close before the 250 ms autosave delay: the close handshake must flush this edit.
   await page.getByRole('textbox', { name: '笔记标题' }).fill('关闭前最后一次编辑')
+  await openAnalysis(page)
+  await paintDetail(page, 'puma', '草木绿', '细记号笔')
   const closed = app.waitForEvent('close')
   await app.evaluate(({ BrowserWindow }) => BrowserWindow.getAllWindows()[0].close())
   await closed
@@ -95,8 +86,10 @@ try {
   page = await launch()
   await expect(page.getByRole('textbox', { name: '笔记标题' })).toHaveValue('关闭前最后一次编辑')
   await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
-  await expect(page.locator('.ink').filter({ hasText: /^The hunt$/ })).toHaveAttribute('data-layer-count', '4')
-  await expect(page.locator('.ink-surface').filter({ hasText: /^The hunt$/ })).toHaveAttribute('data-depth', '2')
+  await openAnalysis(page)
+  await expect(panel(page).locator('[data-color="#f09a91"]')).toHaveText('The hunt')
+  await expect(panel(page).locator('[data-color="#a2cf95"]')).toHaveText('puma')
+  await page.getByRole('button', { name: '关闭片段分析' }).click()
   await expect(page.locator('.wordbook-count')).toHaveText('1')
   await app.close(); app = undefined
   // Corrupt the primary file while stopped. Recovery must preserve it and use a valid backup.

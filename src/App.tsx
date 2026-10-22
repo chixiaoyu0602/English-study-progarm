@@ -9,6 +9,9 @@ import { wordFromArticle, type WordRequest } from './reading'
 import type { DictionaryEntry } from './dictionary'
 import DictionaryCard from './DictionaryCard'
 import Wordbook from './Wordbook'
+import AnalysisPanel from './AnalysisPanel'
+import { primaryBlockCount } from '../shared/annotations.js'
+import type { AnalysisTarget } from './ink-ranges'
 import packageInfo from '../package.json'
 
 const appVersion = packageInfo.version
@@ -45,6 +48,8 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
   const [tool, setTool] = useState<Tool>('text')
   const [view, setView] = useState<'notes' | 'vocabulary'>('notes')
   const [lookup, setLookup] = useState<WordRequest | null>(null)
+  const [analysis, setAnalysis] = useState<{ noteId: string; target: AnalysisTarget } | null>(null)
+  const analysisRef = useRef(analysis); analysisRef.current = analysis
   const [editor, setEditor] = useState<Editor | null>(null)
   const [selection, setSelection] = useState(false)
   const [query, setQuery] = useState('')
@@ -62,9 +67,12 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
   const input = useRef<HTMLInputElement>(null)
   const pending = useRef<Promise<boolean>>(Promise.resolve(true))
   const current = book.notes.find(note => note.id === book.activeId) || null
+  useEffect(() => {
+    if (analysis && (analysis.noteId !== current?.id || view !== 'notes')) setAnalysis(null)
+  }, [analysis, current?.id, view])
   const visibleNotes = book.notes.filter(note => `${note.title}\n${docText(note.content)}`.toLocaleLowerCase().includes(query.toLocaleLowerCase())).sort((a, b) => b.updatedAt - a.updatedAt)
   const text = current ? docText(current.content) : ''
-  const marks = current?.content.content?.flatMap(p => p.content || []).filter(node => node.marks?.length).length || 0
+  const marks = current ? primaryBlockCount(current.content) : 0
   const notify = useCallback((message: string) => setToast(message), [])
   useEffect(() => { if (!toast) return; const timeout = setTimeout(() => setToast(''), 4200); return () => clearTimeout(timeout) }, [toast])
   useEffect(() => { document.documentElement.dataset.theme = book.theme }, [book.theme])
@@ -140,7 +148,7 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
     setTool(nextTool)
     if (nextTool === 'wide' || nextTool === 'fine') setBook(previous => ({ ...previous, pen: nextTool }))
     if (!editor || editor.state.selection.empty || nextTool === 'text') return
-    if (!paintSelection(editor, nextTool, color)) { notify('同一段文字最多叠加 8 层，请先擦除一层再继续。'); return }
+    if (!paintSelection(editor, nextTool, color)) { notify('无法完成标注，请重新选择文字。'); return }
     setSelection(false)
   }
   const chooseColor = (color: string) => {
@@ -195,6 +203,11 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
   actionsRef.current = { addNote, paint, persist, lookupSelected }
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (analysisRef.current) {
+        if (event.key === 'Escape') setAnalysis(null)
+        if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') { event.preventDefault(); void actionsRef.current.persist() }
+        return
+      }
       if (event.key === 'Escape') { setHelp(false); setColorsOpen(false); setDeleting(null); setLookup(null); setTool('text') }
       if (!(event.ctrlKey || event.metaKey)) return
       if (event.key.toLowerCase() === 'n') { event.preventDefault(); actionsRef.current.addNote() }
@@ -211,7 +224,7 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
 
   const saveStatus = <div className="save-status" role="status">{saveState === 'saving' ? <LoaderCircle size={13} className="spin" /> : saveState === 'error' ? <span className="error-dot" /> : <Check size={14} />}<span>{saveState === 'saving' ? '正在保存' : saveState === 'error' ? '保存失败' : '已保存到本机'}</span></div>
 
-  return <div className={`app ${sidebar ? '' : 'sidebar-collapsed'}`}>
+  return <><div className={`app ${sidebar ? '' : 'sidebar-collapsed'}`} inert={!!analysis}>
     {sidebar && <aside className="sidebar" aria-label="笔记列表">
       <div className="brand"><span className="brand-icon"><NotebookPen size={23} strokeWidth={1.7} /></span><div><strong>拾光笔记</strong><span>MARKNOTE</span></div></div>
       <button className="new-note" onClick={addNote}><Plus size={18} /> 新建笔记 <kbd>Ctrl N</kbd></button>
@@ -242,7 +255,7 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
             <button className={`tool-button ${tool === 'text' ? 'active' : ''}`} aria-label="编辑文字" aria-pressed={tool === 'text'} title="编辑文字 · Esc" onClick={() => paint('text')}><Type size={19} /><span>文字</span></button>
             <button className={`tool-button ${tool === 'wide' ? 'active' : ''}`} aria-label="粗记号笔" aria-pressed={tool === 'wide'} title="粗记号笔 · Ctrl Shift H" onClick={() => paint('wide')}><Highlighter size={19} /><span>粗笔</span></button>
             <button className={`tool-button ${tool === 'fine' ? 'active' : ''}`} aria-label="细记号笔" aria-pressed={tool === 'fine'} title="细记号笔 · Ctrl Shift U" onClick={() => paint('fine')}><Underline size={19} /><span>细笔</span></button>
-            <button className={`tool-button erase-button ${tool === 'erase' ? 'active' : ''}`} aria-label="橡皮擦" aria-pressed={tool === 'erase'} title="拖选文字，擦除最上层标注 · Ctrl Shift E" onClick={() => paint('erase')}><Eraser size={18} /></button>
+            <button className={`tool-button erase-button ${tool === 'erase' ? 'active' : ''}`} aria-label="橡皮擦" aria-pressed={tool === 'erase'} title="拖选文字，擦除主文标记 · Ctrl Shift E" onClick={() => paint('erase')}><Eraser size={18} /></button>
           </div>
           <span className="toolbar-divider" />
           <div className="palette" role="group" aria-label="记号笔颜色">
@@ -266,11 +279,11 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
             <input className="note-title" aria-label="笔记标题" placeholder="未命名笔记" maxLength={200} value={current.title} onChange={event => editNote(current.id, { title: event.target.value })} />
             <div className="note-byline"><span>{dateLabel(current.createdAt)}</span><span>·</span><span>{text.replace(/\s/g, '').length.toLocaleString()} 字符</span><span className="byline-tag">随心记</span></div>
             <div className="paper-rule" />
-            <NoteEditor key={current.id} note={current} tool={tool} color={book.color} fontSize={book.fontSize} onChange={(content: JSONContent) => editNote(current.id, { content })} onReady={setEditor} onSelection={setSelection} onLimit={() => notify('每篇笔记最多支持 20 万字符。请新建笔记继续。')} onLayerLimit={() => notify('同一段文字最多叠加 8 层，请先擦除一层再继续。')} onLookup={request => { setLookup(request); setColorsOpen(false) }} />
+            <NoteEditor key={current.id} note={current} tool={tool} color={book.color} fontSize={book.fontSize} onChange={(content: JSONContent) => editNote(current.id, { content })} onReady={setEditor} onSelection={setSelection} onLimit={() => notify('每篇笔记最多支持 20 万字符。请新建笔记继续。')} onLayerLimit={() => notify('无法完成标注，请重新选择文字。')} onOpenAnalysis={target => { setAnalysis({ noteId: current.id, target }); setTool('text'); setSelection(false); setLookup(null); setColorsOpen(false) }} onLookup={request => { setLookup(request); setColorsOpen(false) }} />
             <div className="paper-end"><span /> <NotebookPen size={15} /> <span /></div>
           </article>
         </div>
-        <footer className="statusbar">{saveStatus}<div className="tool-hint">{selection ? '选择一支记号笔，为选中文字标注' : tool === 'text' ? '粘贴文字，或选择记号笔开始标注' : tool === 'erase' ? '拖选文字，先擦细笔，再擦内层底色' : `拖选文字，使用${tool === 'wide' ? '粗' : '细'}记号笔标注`}</div><div className="reading-size"><button aria-label="缩小字号" title="缩小字号" disabled={book.fontSize <= 16} onClick={() => setBook(previous => ({ ...previous, fontSize: previous.fontSize - 2 }))}><Minus size={13} /></button><span>{book.fontSize}</span><button aria-label="放大字号" title="放大字号" disabled={book.fontSize >= 28} onClick={() => setBook(previous => ({ ...previous, fontSize: previous.fontSize + 2 }))}><Plus size={13} /></button><span className="status-divider" /><span className="annotation-count">{marks} 处标注</span></div></footer>
+        <footer className="statusbar">{saveStatus}<div className="tool-hint">{selection ? '选择一支记号笔，为选中文字标注' : tool === 'text' ? '点击色块分析内部成分，或选择记号笔开始标注' : tool === 'erase' ? '拖选文字，擦除主文标记；可撤销恢复' : `拖选文字，使用${tool === 'wide' ? '粗' : '细'}记号笔标注`}</div><div className="reading-size"><button aria-label="缩小字号" title="缩小字号" disabled={book.fontSize <= 16} onClick={() => setBook(previous => ({ ...previous, fontSize: previous.fontSize - 2 }))}><Minus size={13} /></button><span>{book.fontSize}</span><button aria-label="放大字号" title="放大字号" disabled={book.fontSize >= 28} onClick={() => setBook(previous => ({ ...previous, fontSize: previous.fontSize + 2 }))}><Plus size={13} /></button><span className="status-divider" /><span className="annotation-count">{marks} 处标注</span></div></footer>
       </> : <div className="empty-workspace"><div className="empty-icon"><NotebookPen size={36} strokeWidth={1.2} /></div><h1>新的一页，从这里开始</h1><p>写下灵感，粘贴好文，给值得记住的句子添一点颜色。</p><button className="primary-button" onClick={addNote}><Plus size={17} /> 新建第一篇笔记</button></div>}
       </div>
       <div className="library-actions"><button onClick={() => void importAll()} disabled={busy}><ArrowDownToLine size={15} /> 导入备份</button>{view === 'notes' && current && <button className="delete-note" onClick={() => setDeleting(current)} aria-label="删除当前笔记"><Trash2 size={15} /><span>删除笔记</span></button>}</div>
@@ -286,7 +299,7 @@ function Notebook({ initial, loadError, warning }: { initial: Notebook; loadErro
       if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus() }
     }}>
       <button autoFocus className="modal-close icon-button" aria-label="关闭对话框" onClick={() => { setHelp(false); setDeleting(null) }}><X size={19} /></button>
-      {deleting ? <><div className="modal-symbol"><Trash2 size={25} /></div><h2 id="dialog-title">删除这篇笔记？</h2><p>「{deleting.title.trim() || '未命名笔记'}」将被永久删除。建议先导出备份，删除后无法撤销。</p><div className="modal-actions"><button className="secondary-button" onClick={() => setDeleting(null)}>保留笔记</button><button className="danger-button" onClick={deleteNote}>确认删除</button></div></> : <><div className="modal-symbol"><NotebookPen size={27} /></div><h2 id="dialog-title">一点颜色，记住更多</h2><p>拾光笔记 v{appVersion} · 为专注阅读而做</p><div className="help-steps"><div><span>01</span><p><strong>把文字放进来</strong>新建笔记，直接输入或粘贴文本。粘贴时会去除原有格式，让页面保持清爽。</p></div><div><span>02</span><p><strong>给重点一点颜色</strong>选择粗笔或细笔，再拖选文字。同色也可嵌套，用深浅和首尾短边界区分内外层。先标小区域再补整段底色也可以，最多叠加 8 层；橡皮擦先擦掉细笔，再逐层擦除内层底色。</p></div><div><span>03</span><p><strong>安心留下你的记录</strong>文章中右键单词即可查中文释义并加入单词本，自动保留原句。也可选中单词按 Ctrl D。笔记和单词本一起自动保存、导出备份；导入会保留现有内容。</p></div></div><div className="shortcut-list"><span>查词收藏 <kbd>Ctrl D</kbd></span><span>新建笔记 <kbd>Ctrl N</kbd></span><span>撤销 <kbd>Ctrl Z</kbd></span><span>粗笔 <kbd>Ctrl Shift H</kbd></span><span>细笔 <kbd>Ctrl Shift U</kbd></span><span>橡皮擦 <kbd>Ctrl Shift E</kbd></span><span>回到文字 <kbd>Esc</kbd></span></div><p className="help-footnote">完全离线，无账号、无云同步。请定期导出备份。每篇最多 20 万字符，最多 500 篇，总备份不超过 10 MB。</p></>}
+      {deleting ? <><div className="modal-symbol"><Trash2 size={25} /></div><h2 id="dialog-title">删除这篇笔记？</h2><p>「{deleting.title.trim() || '未命名笔记'}」将被永久删除。建议先导出备份，删除后无法撤销。</p><div className="modal-actions"><button className="secondary-button" onClick={() => setDeleting(null)}>保留笔记</button><button className="danger-button" onClick={deleteNote}>确认删除</button></div></> : <><div className="modal-symbol"><NotebookPen size={27} /></div><h2 id="dialog-title">一点颜色，记住更多</h2><p>拾光笔记 v{appVersion} · 为专注阅读而做</p><div className="help-steps"><div><span>01</span><p><strong>把文字放进来</strong>新建笔记，直接输入或粘贴文本。粘贴时会去除原有格式，让页面保持清爽。</p></div><div><span>02</span><p><strong>给重点一点颜色</strong>选择粗笔或细笔，再拖选文字。主文只显示第一层颜色。点击色块，打开不带外层底色的片段分析框，再在里面标注主谓宾等内部成分。只有主文和片段两层，内部标记自动保存。文字在主文修改，分析框会同步更新。</p></div><div><span>03</span><p><strong>安心留下你的记录</strong>文章中右键单词即可查中文释义并加入单词本，自动保留原句。也可选中单词按 Ctrl D。笔记和单词本一起自动保存、导出备份；导入会保留现有内容。</p></div></div><div className="shortcut-list"><span>查词收藏 <kbd>Ctrl D</kbd></span><span>新建笔记 <kbd>Ctrl N</kbd></span><span>撤销 <kbd>Ctrl Z</kbd></span><span>粗笔 <kbd>Ctrl Shift H</kbd></span><span>细笔 <kbd>Ctrl Shift U</kbd></span><span>橡皮擦 <kbd>Ctrl Shift E</kbd></span><span>回到文字 <kbd>Esc</kbd></span></div><p className="help-footnote">完全离线，无账号、无云同步。请定期导出备份。每篇最多 20 万字符，最多 500 篇，总备份不超过 10 MB。</p></>}
     </section></div>}
-  </div>
+  </div>{analysis && editor && analysis.noteId === current?.id && <AnalysisPanel source={editor} target={analysis.target} color={book.color} customColors={book.customColors} fontSize={book.fontSize} saveState={saveState} saveError={saveError} onColor={(color, custom) => setBook(previous => ({ ...previous, color, customColors: custom ? [...new Set([color, ...previous.customColors])].slice(0, 8) : previous.customColors }))} onLimit={() => notify('这个位置保留了较多旧标记，请先擦除一些标记。')} onClose={() => setAnalysis(null)} />}</>
 }

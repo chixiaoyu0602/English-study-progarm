@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { mergeNotebooks, parseNotebook, validateNotebook, EMPTY_DOC } from '../shared/schema.js'
 
-const book = () => ({ version: 3, notes: [{ id: 'article', title: 'Reading', content: structuredClone(EMPTY_DOC), createdAt: 1, updatedAt: 1 }], activeId: 'article', vocabulary: [], theme: 'light', color: '#f3cf62', pen: 'wide', customColors: [], fontSize: 20 })
+const book = () => ({ version: 4, notes: [{ id: 'article', title: 'Reading', content: structuredClone(EMPTY_DOC), createdAt: 1, updatedAt: 1 }], activeId: 'article', vocabulary: [], theme: 'light', color: '#f3cf62', pen: 'wide', customColors: [], fontSize: 20 })
 const card = () => ({ word: 'puma', phonetic: 'pju:mə', meaning: 'n. 美洲狮', addedAt: 1, source: { noteId: 'article', title: 'Reading', quote: 'The hunt for the puma began.', selected: 'puma' } })
 test('round-trips vocabulary, dictionary meanings and source snapshots', () => {
   const data = { ...book(), vocabulary: [card()] }
@@ -12,7 +12,7 @@ test('upgrades both old formats and preserves notes without inventing word cards
   for (const version of [1, 2]) {
     const legacy = { ...book(), version }; delete legacy.vocabulary
     const upgraded = parseNotebook(JSON.stringify(legacy))
-    assert.equal(upgraded.version, 3)
+    assert.equal(upgraded.version, 4)
     assert.deepEqual(upgraded.vocabulary, [])
     assert.deepEqual(upgraded.notes, legacy.notes)
     assert.equal(legacy.version, version)

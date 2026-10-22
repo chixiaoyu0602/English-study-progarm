@@ -20,15 +20,14 @@ function mix(color, paper, strength) {
 }
 
 const cache = new Map()
-export function inkFill(color, depth, theme) {
-  const key = `${color}:${depth}:${theme}`
+export function inkFill(color, theme) {
+  const key = `${color}:${theme}`
   if (cache.has(key)) return cache.get(key)
   const { paper, text } = INK_THEMES[theme]
   let maximum = 1
   // Custom black/white colours must also keep the article text readable.
   while (maximum > 0 && contrast(mix(color, paper, maximum), text) < 4.6) maximum = Math.max(0, maximum - .01)
-  const steps = [.45, .72, .92, 1]
-  const fill = mix(color, paper, maximum * steps[Math.min(depth, steps.length - 1)])
+  const fill = mix(color, paper, maximum * .45)
   if (cache.size > 2000) cache.clear()
   cache.set(key, fill)
   return fill
@@ -40,7 +39,7 @@ export function inkBackground(wide, fine, theme) {
     return `linear-gradient(transparent calc(100% - ${bottom + 3}px), ${layer.color} calc(100% - ${bottom + 3}px), ${layer.color} calc(100% - ${bottom}px), transparent calc(100% - ${bottom}px))`
   })
   if (wide) {
-    const fill = inkFill(wide.color, wide.depth, theme)
+    const fill = inkFill(wide.color, theme)
     lines.push(`linear-gradient(${fill}, ${fill})`)
   }
   return lines.join(', ') || 'none'

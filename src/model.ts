@@ -5,7 +5,7 @@ export interface Note { id: string; title: string; content: JSONContent; created
 export interface WordSource { noteId: string | null; title: string; quote: string; selected: string }
 export interface WordCard { word: string; phonetic: string; meaning: string; addedAt: number; source: WordSource | null }
 export interface Notebook {
-  version: 3; notes: Note[]; activeId: string | null; vocabulary: WordCard[]; theme: 'light' | 'dark';
+  version: 4; notes: Note[]; activeId: string | null; vocabulary: WordCard[]; theme: 'light' | 'dark';
   color: string; pen: 'wide' | 'fine'; customColors: string[]; fontSize: number;
 }
 export type Result = { ok: boolean; data?: Notebook | null; error?: string; warning?: string; canceled?: boolean }
@@ -31,7 +31,7 @@ export function newNote(): Note {
 }
 export function initialNotebook(): Notebook {
   const now = Date.now()
-  const ink = (text: string, color: string, width: string = 'wide'): JSONContent => ({ type: 'text', text, marks: [{ type: 'ink', attrs: { color, width } }] })
+  const ink = (text: string, color: string, width: string = 'wide'): JSONContent => ({ type: 'text', text, marks: [{ type: 'ink', attrs: { color, width, layers: [{ color, width, id: crypto.randomUUID() }] } }] })
   const text = (value: string): JSONContent => ({ type: 'text', text: value })
   const p = (...content: JSONContent[]): JSONContent => ({ type: 'paragraph', content })
   const welcome: Note = {
@@ -45,7 +45,7 @@ export function initialNotebook(): Notebook {
       p(text('试试看，给你喜欢的这句话涂上一点颜色。')),
     ] },
   }
-  return { version: 3, notes: [welcome], activeId: welcome.id, vocabulary: [], theme: 'light', color: COLORS[0].value, pen: 'wide', customColors: [], fontSize: 20 }
+  return { version: 4, notes: [welcome], activeId: welcome.id, vocabulary: [], theme: 'light', color: COLORS[0].value, pen: 'wide', customColors: [], fontSize: 20 }
 }
 export function downloadBackup(notebook: Notebook) {
   const url = URL.createObjectURL(new Blob([JSON.stringify(notebook, null, 2)], { type: 'application/json' }))

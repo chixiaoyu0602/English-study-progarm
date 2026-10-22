@@ -1,4 +1,5 @@
 import { normalizeWord } from './dictionary.js'
+import { upgradeAnnotations } from './annotations.js'
 
 export const MAX_FILE_BYTES = 10 * 1024 * 1024
 export const MAX_NOTES = 500
@@ -7,25 +8,27 @@ export const MAX_INK_LAYERS = 8
 export const MAX_VOCABULARY = 5000
 export const EMPTY_DOC = { type: 'doc', content: [{ type: 'paragraph' }] }
 export const isColor = (value) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value)
+const isStrokeId = value => typeof value === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(value)
 export const isInkLayer = layer => !!layer && isColor(layer.color) && ['wide', 'fine'].includes(layer.width) &&
-  (layer.id === undefined || (typeof layer.id === 'string' && /^[a-zA-Z0-9_-]{1,80}$/.test(layer.id)))
+  (layer.id === undefined || isStrokeId(layer.id)) && (layer.parent === undefined || isStrokeId(layer.parent))
 export function inkLayers(attrs) {
   if (Array.isArray(attrs?.layers) && attrs.layers.length) return attrs.layers
   return isInkLayer(attrs) ? [{ color: attrs.color, width: attrs.width }] : []
 }
 
-function validInkMark(mark) {
+function validInkMark(mark, version) {
   if (mark?.type !== 'ink' || !isInkLayer(mark.attrs)) return false
   const layers = mark.attrs.layers
-  if (layers === undefined || layers === null) return true
+  if (layers === undefined || layers === null) return version < 4
   if (!Array.isArray(layers) || !layers.length || layers.length > MAX_INK_LAYERS || !layers.every(isInkLayer)) return false
   const ids = layers.filter(layer => layer.id !== undefined).map(layer => layer.id)
   if (new Set(ids).size !== ids.length) return false
+  if (version >= 4 && (!layers[0].id || layers[0].parent !== undefined || layers.some((layer, i) => !layer.id || (i > 0 && layer.parent !== layers[0].id)))) return false
   const top = layers[layers.length - 1]
   return top.color === mark.attrs.color && top.width === mark.attrs.width
 }
 
-function validateDoc(doc) {
+function validateDoc(doc, version) {
   if (!doc || doc.type !== 'doc' || !Array.isArray(doc.content)) return false
   let length = 0
   let nodes = 0
@@ -40,7 +43,7 @@ function validateDoc(doc) {
     } else if (node.text !== undefined) return false
     if (node.marks !== undefined) {
       if (node.type !== 'text' || !Array.isArray(node.marks) || node.marks.length > 1) return false
-      if (!node.marks.every(validInkMark)) return false
+      if (!node.marks.every(mark => validInkMark(mark, version))) return false
       for (const mark of node.marks) {
         for (const layer of inkLayers(mark.attrs)) {
           if (!layer.id) continue
@@ -61,11 +64,11 @@ function validateDoc(doc) {
 }
 
 export function validateNotebook(value) {
-  if (!value || ![1, 2, 3].includes(value.version) || !Array.isArray(value.notes) || value.notes.length > MAX_NOTES) throw new Error('不是有效的拾光笔记备份，或笔记数量超过 500 篇。')
+  if (!value || ![1, 2, 3, 4].includes(value.version) || !Array.isArray(value.notes) || value.notes.length > MAX_NOTES) throw new Error('不是有效的拾光笔记备份，或笔记数量超过 500 篇。')
   const ids = new Set()
   for (const note of value.notes) {
     if (!note || typeof note.id !== 'string' || !note.id || ids.has(note.id) || note.id.length > 100 ||
-      typeof note.title !== 'string' || note.title.length > 200 || !Number.isFinite(note.updatedAt) || !Number.isFinite(note.createdAt) || !validateDoc(note.content)) {
+      typeof note.title !== 'string' || note.title.length > 200 || !Number.isFinite(note.updatedAt) || !Number.isFinite(note.createdAt) || !validateDoc(note.content, value.version)) {
       throw new Error('备份中的笔记格式无效。每篇笔记最多支持 20 万字符。')
     }
     ids.add(note.id)
@@ -87,8 +90,8 @@ export function validateNotebook(value) {
       typeof source.selected !== 'string' || source.selected.length > 80 || !normalizeWord(source.selected))) throw new Error('单词的原文出处格式无效。')
     words.add(entry.word)
   }
-  // Preserve legacy notes verbatim; older apps reject format 3 instead of dropping vocabulary.
-  return { ...value, version: 3, vocabulary }
+  if (value.version < 4) return validateNotebook({ ...value, version: 4, vocabulary, notes: value.notes.map(note => ({ ...note, content: upgradeAnnotations(note.content) })) })
+  return { ...value, version: 4, vocabulary }
 }
 
 export function mergeNotebooks(current, incoming, newId = () => crypto.randomUUID()) {

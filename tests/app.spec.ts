@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test'
 
 import { body, fresh, select } from './helpers'
 
-test('paints with both pen widths, layers colors, erases one layer, undoes and redoes', async ({ page }) => {
+test('paints with both pen widths, recolours the primary block, erases, undoes and redoes', async ({ page }) => {
   await fresh(page)
   await select(page, 'The hunt')
   await page.getByRole('button', { name: '粗记号笔', exact: true }).click()
@@ -15,13 +15,12 @@ test('paints with both pen widths, layers colors, erases one layer, undoes and r
   await expect(page.locator('.ink-fine')).toContainText('puma')
   await select(page, 'The hunt')
   await page.getByRole('button', { name: '橡皮擦', exact: true }).click()
-  await expect(page.locator('.ink-wide')).toHaveAttribute('data-color', '#f3cf62')
-  await expect(page.locator('.ink-wide')).toHaveAttribute('data-layer-count', '1')
+  await expect(page.locator('.ink-wide')).toHaveCount(0)
   await page.getByRole('button', { name: '撤销', exact: true }).click()
   await expect(page.locator('.ink-wide')).toHaveAttribute('data-color', '#f09a91')
-  await expect(page.locator('.ink-wide')).toHaveAttribute('data-layer-count', '2')
+  await expect(page.locator('.ink-wide')).toHaveAttribute('data-layer-count', '1')
   await page.getByRole('button', { name: '重做', exact: true }).click()
-  await expect(page.locator('.ink-wide')).toHaveAttribute('data-color', '#f3cf62')
+  await expect(page.locator('.ink-wide')).toHaveCount(0)
   await expect(body(page)).toContainText('The hunt for the puma')
 })
 
@@ -46,8 +45,9 @@ test('dragging across lines paints in the selected mode', async ({ page }) => {
   await page.mouse.down()
   await page.mouse.move(points.x2, points.y2, { steps: 15 })
   await page.mouse.up()
-  await expect(page.locator('.ink-layered')).toHaveCount(2)
-  await expect(page.locator('.ink-layered').first()).toHaveAttribute('data-layer-count', '2')
+  await expect(page.locator('.ink-wide')).toHaveCount(2)
+  await expect(page.locator('.ink-wide').first()).toHaveAttribute('data-color', '#f09a91')
+  await expect(page.locator('.ink-wide').first()).toHaveAttribute('data-layer-count', '1')
 })
 
 test('custom colors, notes, annotations and night mode survive a reload', async ({ page }) => {
