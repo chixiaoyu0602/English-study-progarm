@@ -89,6 +89,6 @@ Electron 下载遵循系统代理和 CA 配置，并使用官方 checksum 校验
 
 推送 `v*` 标签还会在测试全部通过后自动创建 GitHub Release，并上传 exe 和 `SHA256SUMS.txt`。工作流使用 GitHub 自带的临时令牌，不需要个人访问令牌。源码仓库中的 `downloads/` 也保留 v1.0.0 可执行文件，供直接下载；后续版本可通过 Releases 分发。
 
-本次交付的浏览器功能和 Linux Electron 桌面流程已验证，Windows exe 已完成交叉构建；Windows 真机结果以 Actions 中的 Windows 打包验证或实际运行结果为准。
+本次交付已通过 5 项数据校验测试、8 项界面测试、Linux 打包应用桌面验证，以及 [Windows 原生打包和打包后桌面验证](https://github.com/chixiaoyu0602/English-study-progarm/actions/runs/39752290827)。桌面验证涵盖实际磁盘写入、备份导入导出、关闭前最后一次编辑保存、重新启动和损坏文件恢复。`downloads/` 中的免安装包已从 GitHub 下载回验，SHA-256 与本地交付文件一致。
 
 MIT License。
