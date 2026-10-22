@@ -111,7 +111,7 @@ npm run desktop     # 构建并打开真正的桌面应用；数据写入磁盘
 
 ```sh
 npx playwright install chromium
-npm test            # 28 项词典／数据／标记范围测试 + 33 项界面功能测试
+npm test            # 28 项词典／数据／标记范围测试 + 34 项界面功能测试
 npm run test:speech  # Windows 本地语音：实际合成 IPA／系统读音为 WAV 并校验
 npm run test:desktop # 桌面桥接、磁盘保存、关闭刷新、备份导入导出与损坏恢复
 npm run dist:win     # release/MarkNote-1.4.0-Windows-x64.exe

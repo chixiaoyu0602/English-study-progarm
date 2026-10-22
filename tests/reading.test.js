@@ -19,6 +19,8 @@ test('sentence segmentation keeps names, initials, decimals and quotation ending
 test('single-word eligibility treats apostrophes and hyphens as part of one word, regardless of internal ink runs', () => {
   assert.equal(englishWords("'don't'").length, 1)
   assert.equal(englishWords('well-known.').length, 1)
+  assert.equal(englishWords('U.S.').length, 1)
+  assert.equal(englishWords('well‑known').length, 1)
   const schema = new Schema({ nodes: { doc: { content: 'paragraph+' }, paragraph: { content: 'text*' }, text: {} }, marks: { ink: { attrs: { layers: {} } } } })
   const root = { id: 'r', color: '#f3cf62', width: 'wide' }
   const marked = (value, layers) => schema.text(value, [schema.marks.ink.create({ layers })])
@@ -42,6 +44,12 @@ test('IPA normalizes old dictionary typography and rejects ambiguous or unsuppor
   assert.equal(normalizeIPA("'pju:mә"), 'ˈpjuːmə')
   assert.equal(normalizeIPA('/ˈkæt/'), 'ˈkæt')
   assert.equal(normalizeIPA('[ri:d]'), 'riːd')
+  assert.equal(normalizeIPA('wind'), 'wɪnd')
+  assert.equal(normalizeIPA('bә:d'), 'bɜːd')
+  assert.equal(normalizeIPA('gou'), 'gəʊ')
+  assert.equal(normalizeIPA(".intә'næʃәnәl"), 'ˌɪntəˈnæʃənəl')
+  assert.equal(normalizeIPA("ri'kɒ:d"), 'rɪˈkɔːd')
+  assert.equal(normalizeIPA('/ˈwɪn.dəʊ/'), 'ˈwɪn.dəʊ')
   for (const value of ['', null, 'ri:d, red', 'ri:d / red', '<phoneme>', '中文']) assert.equal(normalizeIPA(value), null)
 })
 

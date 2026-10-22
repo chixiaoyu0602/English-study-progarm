@@ -112,3 +112,13 @@ test('single-word saved detail data survives even though its entry is hidden', a
   await page.reload()
   await expect(page.locator('.ink')).toHaveAttribute('data-layer-count', '2')
 })
+
+test('word collection follows a manually corrected sentence boundary', async ({ page }) => {
+  const source = 'The puma escaped. It ran away.'
+  await fresh(page, source)
+  await page.getByRole('button', { name: '第 2 句分句选项' }).click()
+  await page.getByRole('menuitem', { name: '与上一句合并' }).click()
+  await select(page, 'ran')
+  await page.getByRole('button', { name: '查词并加入单词本' }).click()
+  await expect(page.getByRole('dialog', { name: 'ran' }).locator('.dictionary-source')).toHaveText(`文章中的原句${source}`)
+})

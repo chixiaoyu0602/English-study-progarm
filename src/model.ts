@@ -18,7 +18,7 @@ declare global {
       export: (data: Notebook) => Promise<Result>;
       import: () => Promise<Result>;
       onFlush: (handler: () => Promise<boolean>) => () => void;
-      speak: (request: { word: string; phonetic: string }) => Promise<{ ok: boolean; error?: string; mode?: 'ipa' | 'system'; voice?: string }>;
+      speak: (request: { word: string; phonetic: string }) => Promise<{ ok: boolean; canceled?: boolean; error?: string; mode?: 'ipa' | 'system'; voice?: string }>;
       stopSpeech: () => Promise<void>;
     }
   }

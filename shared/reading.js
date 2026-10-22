@@ -3,7 +3,7 @@ const abbreviation = /\b(?:Mr|Mrs|Ms|Dr|Prof|Sr|Jr|St|vs|etc|e\.g|i\.e)\.$/i
 
 // Offsets are UTF-16, matching both ProseMirror and browser selections.
 export function englishWords(text) {
-  return text.match(/[a-z]+(?:['’\-][a-z]+)*/gi) || []
+  return text.match(/[a-z](?:\.[a-z])+\.?|[a-z]+(?:['’\-\u2010\u2011][a-z]+)*/gi) || []
 }
 
 export function sentenceSegments(text) {

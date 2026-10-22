@@ -1,7 +1,7 @@
 import type { Editor } from '@tiptap/core'
 import type { Note, WordSource } from './model'
 import { normalizeWord } from '../shared/dictionary.js'
-import { sentenceSegments } from '../shared/reading.js'
+import { sentenceRanges } from '../shared/reading.js'
 
 export interface WordRequest { query: string; source: WordSource | null }
 export function wordFromArticle(editor: Editor, note: Note, position?: number): WordRequest | null {
@@ -19,9 +19,10 @@ export function wordFromArticle(editor: Editor, note: Note, position?: number): 
   }
   const query = normalizeWord(selected)
   if (!query) return null
-  let quote = sentenceSegments(paragraph).find(segment => offset >= segment.from && offset < segment.to)?.text.trim() || paragraph.trim()
+  const sentence = sentenceRanges(editor.state.doc, note.sentenceBreaks).find(range => pos >= range.from && pos < range.to)
+  let quote = sentence ? editor.state.doc.textBetween(sentence.from, sentence.to, '\n', '\n').trim() : paragraph.trim()
   if (quote.length > 1200) {
-    const start = Math.max(0, offset - 400)
+    const start = Math.max(0, (sentence ? pos - sentence.from : offset) - 400)
     quote = `${start ? '…' : ''}${paragraph.slice(start, start + 1196)}…`
   }
   return { query, source: { noteId: note.id, title: note.title.trim() || '未命名笔记', quote, selected: selected.trim().slice(0, 80) } }

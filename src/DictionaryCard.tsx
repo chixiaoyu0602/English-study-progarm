@@ -1,3 +1,4 @@
+import { normalizeIPA } from '../shared/pronunciation.js'
 import { useEffect, useState } from 'react'
 import { BookPlus, Check, LoaderCircle, X } from 'lucide-react'
 import { lookupWord, type DictionaryEntry } from './dictionary'
@@ -25,7 +26,7 @@ export default function DictionaryCard({ request, savedWords, onSave, onClose }:
     <h2 id="dictionary-heading">{result?.word || request.query}</h2>
     {loading ? <div className="dictionary-loading" role="status"><LoaderCircle size={17} className="spin" /> 正在查词…</div> : error ? <div role="alert"><p>{error}</p><button className="secondary-button" onClick={() => setRetry(value => value + 1)}>重新打开词典</button></div> : !result ? <p className="dictionary-missing">离线词典暂未收录这个词。请检查拼写，或选择一个完整的英文单词。</p> : <>
       <div className="dictionary-scroll">
-      {result.phonetic && <p className="phonetic">/{result.phonetic}/</p>}
+      {result.phonetic && <p className="phonetic">/{normalizeIPA(result.phonetic) || result.phonetic}/</p>}
       {result.matchedFrom && <p className="dictionary-match">由 {result.matchedFrom} 匹配到词形 {result.word}</p>}
       <div className="dictionary-meaning">{result.meaning}</div>
       {request.source?.quote && <blockquote className="dictionary-source"><span>文章中的原句</span>{request.source.quote}</blockquote>}
