@@ -71,8 +71,12 @@ test('sentence reading preserves source, clipboard, annotations and undo while r
 test('manual merge, split and reset persist, survive source editing and travel in backups', async ({ page }) => {
   const source = 'One sentence. Another sentence here. Final sentence!'
   await fresh(page, source)
+  await page.getByRole('button', { name: '粗记号笔', exact: true }).click()
+  await body(page).press('Control+a')
   await page.getByRole('button', { name: '第 2 句分句选项' }).click()
   await page.getByRole('menuitem', { name: '与上一句合并' }).click()
+  await expect(page.locator('.ink')).toHaveCount(0)
+  await page.keyboard.press('Escape')
   await expect(page.locator('.sentence-number')).toHaveCount(2)
   await expect(body(page)).toHaveText(source)
   await expect(page.getByRole('status').filter({ hasText: '已保存到本机' })).toBeVisible()

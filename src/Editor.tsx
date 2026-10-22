@@ -112,6 +112,7 @@ export default function NoteEditor(props: Props) {
     onPointerDown={event => { if (event.button === 0) pointer.current = { x: event.clientX, y: event.clientY } }}
     onPointerUp={event => {
       if (event.button !== 0 || !editor) return
+      if ((event.target as HTMLElement).closest('.sentence-start, .sentence-menu')) { pointer.current = null; return }
       const target = (event.target as HTMLElement).closest<HTMLElement>('[data-analysis-id]')
       const moved = !pointer.current || Math.hypot(event.clientX - pointer.current.x, event.clientY - pointer.current.y) > 4
       const coords = { left: event.clientX, top: event.clientY }
