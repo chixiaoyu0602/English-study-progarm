@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import type { Editor } from '@tiptap/core'
 import { Check, Eraser, Highlighter, MousePointer2, Plus, Redo2, Underline, Undo2, X } from 'lucide-react'
 import { analysisRange, paintAnalysis } from './Ink'
@@ -54,11 +54,14 @@ export default function AnalysisPanel(props: Props) {
   useEffect(() => {
     if (!range) latest.current.onClose()
   }, [range?.from, range?.to])
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null
+  useLayoutEffect(() => {
+    const active = document.activeElement as HTMLElement | null
+    const previous = active && source.view.dom.contains(active) ? active : null
     close.current?.focus()
     const update = () => setSelected(!!selectedSource(text.current))
     document.addEventListener('selectionchange', update)
+    // Clear the panel selection before the next browser interaction. A passive
+    // cleanup can run after a new article selection and accidentally erase it.
     return () => { document.removeEventListener('selectionchange', update); window.getSelection()?.removeAllRanges(); if (previous?.isConnected) previous.focus(); else if (!source.isDestroyed) source.view.focus() }
   }, [])
 

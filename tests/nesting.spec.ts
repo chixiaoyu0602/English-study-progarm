@@ -78,6 +78,7 @@ test('recolouring the whole primary block retains its saved analysis; erasing an
   await openAnalysis(page)
   await paintDetail(page, 'saw')
   await page.keyboard.press('Escape')
+  await expect.poll(() => body(page).evaluate(el => el.contains(document.activeElement))).toBe(true)
   await select(page, clause)
   await page.getByRole('button', { name: '草木绿', exact: true }).click()
   await openAnalysis(page)

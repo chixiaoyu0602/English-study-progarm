@@ -8,6 +8,8 @@ export async function fresh(page: Page, text = 'The hunt for the puma began in a
   await body(page).fill(text)
 }
 export async function select(page: Page, text: string) {
+  await expect(panel(page)).toHaveCount(0)
+  await body(page).focus()
   await page.evaluate(target => {
     const editor = document.querySelector('.tiptap')!
     const walker = document.createTreeWalker(editor, NodeFilter.SHOW_TEXT)
